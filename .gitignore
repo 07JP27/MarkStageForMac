@@ -1,0 +1,6 @@
+.DS_Store
+.env
+build/
+src/MarkdStage.xcodeproj/xcuserdata/
+src/MarkdStage.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate

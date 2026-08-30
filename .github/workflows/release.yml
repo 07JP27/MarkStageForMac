@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version number (for example 0.1.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag_name=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: src
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild -project src/MarkdStage.xcodeproj \
+            -scheme MarkdStage \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Ad-hoc codesign
+        run: |
+          APP_PATH="build/Build/Products/Release/MarkdStage.app"
+          ENTITLEMENTS="src/MarkdStage/Resources/MarkdStage.Release.entitlements"
+          codesign --force --deep --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            -s - "$APP_PATH"
+          codesign --verify --deep --strict "$APP_PATH"
+
+      - name: Create DMG
+        id: dmg
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APP_PATH="build/Build/Products/Release/MarkdStage.app"
+          DMG_NAME="MarkdStage-v${VERSION}.dmg"
+          test -d "$APP_PATH"
+          mkdir -p dmg-staging
+          cp -R "$APP_PATH" dmg-staging/
+          ln -s /Applications dmg-staging/Applications
+          hdiutil create \
+            -volname "MarkdStage" \
+            -srcfolder dmg-staging \
+            -ov \
+            -format UDZO \
+            "$DMG_NAME"
+          echo "dmg_name=$DMG_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: MarkdStage ${{ steps.version.outputs.tag_name }}
+          generate_release_notes: true
+          files: ${{ steps.dmg.outputs.dmg_name }}
+          body: |
+            ## Installation
+
+            1. Download and open **${{ steps.dmg.outputs.dmg_name }}**.
+            2. Drag **MarkdStage.app** to **Applications**.
+            3. This CI build is ad-hoc signed. If Gatekeeper blocks it, review the source and run:
+               ```bash
+               xattr -dr com.apple.quarantine /Applications/MarkdStage.app
+               ```
+            4. Open MarkdStage from Applications.
