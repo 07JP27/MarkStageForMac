@@ -18,6 +18,7 @@
 ## 主な機能
 
 - Finder、Openパネル、ドラッグ&ドロップ、コマンドラインから `.md` / `.markdown` を開く
+- アプリを終了せず、現在のデッキを閉じて空状態へ戻る
 - 現在のスライド、次のスライド、スピーカーノート、ページ番号、スライド一覧
 - 別ディスプレイへ移動できるオーディエンスウィンドウとmacOSネイティブフルスクリーン
 - 現在位置を保ったまま、Markdown保存を検知してライブリロード
@@ -48,6 +49,7 @@ xattr -dr com.apple.quarantine /Applications/MarkdStage.app
 3. ボタン、Space、Page Up/Down、左右矢印で移動します。
 4. **Presentation → Start or End Presentation** でオーディエンスウィンドウを開きます。
 5. 対象ディスプレイへ移動し、**View → Toggle Audience Full Screen** を選びます。
+6. **File → Close Markdown** または **Close** ボタンでデッキを閉じます。
 
 スライドは `---` で区切ります。先頭のfront matterでレイアウトとテーマを指定できます。
 

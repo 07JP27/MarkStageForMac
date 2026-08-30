@@ -23,6 +23,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     private let nextPlaceholder = NSTextField(labelWithString: "There is no next slide")
     private let previousButton = NSButton()
     private let nextButton = NSButton()
+    private let closeButton = NSButton()
     private let overviewButton = NSButton()
     private let presentButton = NSButton()
     private let exportButton = NSButton()
@@ -62,6 +63,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
                 self?.apply(snapshot)
             }
         }
+        apply(session.currentSnapshot())
     }
 
     @available(*, unavailable)
@@ -93,6 +95,23 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             guard response == .OK, let url = panel.url else { return }
             self?.loadDeck(at: url, startWatching: true)
         }
+    }
+
+    @objc func closeDocument(_ sender: Any?) {
+        guard session.currentSnapshot().total > 0, exportCoordinator == nil else {
+            NSSound.beep()
+            return
+        }
+        loadGeneration += 1
+        watcher.stop()
+        closeAudienceWindow()
+        currentURL = nil
+        fileNameLabel.stringValue = "No Markdown file selected"
+        window?.title = "MarkdStage"
+        window?.representedURL = nil
+        liveStatusLabel.stringValue = "Open a deck to begin"
+        clearError()
+        session.clear()
     }
 
     @objc func previousSlide(_ sender: Any?) {
@@ -137,11 +156,8 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     }
 
     @objc func togglePresentation(_ sender: Any?) {
-        if let audienceWindowController {
-            audienceWindowController.close()
-            self.audienceWindowController = nil
-            server.setPresenterRunning(false)
-            updatePresenterButton()
+        if audienceWindowController != nil {
+            closeAudienceWindow()
             return
         }
         guard let baseURL = server.baseURL else { return }
@@ -176,25 +192,31 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             baseURL: baseURL,
             onCompletion: { [weak self] in
                 self?.exportCoordinator = nil
+                self?.closeButton.isEnabled = (self?.session.currentSnapshot().total ?? 0) > 0
             }
         ) { [weak self] status in
             self?.liveStatusLabel.stringValue = status
         }
         exportCoordinator = coordinator
+        closeButton.isEnabled = false
         coordinator.export(suggestedName: "\(stem).pdf")
     }
 
     func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
         let snapshot = session.currentSnapshot()
         switch item.action {
+        case #selector(closeDocument(_:)):
+            return snapshot.total > 0 && exportCoordinator == nil
         case #selector(previousSlide(_:)), #selector(firstSlide(_:)):
             guard navigationKeysAreAvailable else { return false }
             return snapshot.total > 0 && snapshot.index > 0
         case #selector(nextSlide(_:)), #selector(lastSlide(_:)):
             guard navigationKeysAreAvailable else { return false }
             return snapshot.hasNext
-        case #selector(showSlideList(_:)), #selector(togglePresentation(_:)), #selector(exportPDF(_:)):
+        case #selector(showSlideList(_:)), #selector(togglePresentation(_:)):
             return snapshot.total > 0
+        case #selector(exportPDF(_:)):
+            return snapshot.total > 0 && exportCoordinator == nil
         case #selector(toggleAudienceFullScreen(_:)):
             return audienceWindowController != nil
         default:
@@ -254,6 +276,12 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             action: #selector(openDocument(_:))
         )
         configure(
+            closeButton,
+            title: "Close",
+            symbol: "xmark.circle",
+            action: #selector(closeDocument(_:))
+        )
+        configure(
             overviewButton,
             title: "Slide List",
             symbol: "list.number",
@@ -277,7 +305,9 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
         fileNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let controls = NSStackView(views: [openButton, overviewButton, presentButton, exportButton])
+        let controls = NSStackView(
+            views: [openButton, closeButton, overviewButton, presentButton, exportButton]
+        )
         controls.orientation = .horizontal
         controls.spacing = 8
         controls.translatesAutoresizingMaskIntoConstraints = false
@@ -494,6 +524,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
                 )
                 fileNameLabel.stringValue = loaded.sourceURL.lastPathComponent
                 window?.title = "\(loaded.sourceURL.lastPathComponent) — MarkdStage"
+                window?.representedURL = loaded.sourceURL
                 clearError()
                 NSDocumentController.shared.noteNewRecentDocumentURL(loaded.sourceURL)
                 if startWatching {
@@ -530,6 +561,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         emptyState.isHidden = loaded
         previousButton.isEnabled = loaded && snapshot.index > 0
         nextButton.isEnabled = snapshot.hasNext
+        closeButton.isEnabled = loaded && exportCoordinator == nil
         overviewButton.isEnabled = loaded
         presentButton.isEnabled = loaded
         exportButton.isEnabled = loaded
@@ -554,6 +586,15 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             accessibilityDescription: presentButton.title
         )
         presentButton.setAccessibilityLabel(presentButton.title)
+    }
+
+    private func closeAudienceWindow() {
+        guard let controller = audienceWindowController else { return }
+        audienceWindowController = nil
+        controller.onClose = nil
+        controller.close()
+        server.setPresenterRunning(false)
+        updatePresenterButton()
     }
 
     private func showError(_ message: String) {

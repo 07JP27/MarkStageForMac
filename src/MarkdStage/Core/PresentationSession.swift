@@ -46,6 +46,24 @@ final class PresentationSession: @unchecked Sendable {
     }
 
     @discardableResult
+    func clear() -> PresentationSnapshot {
+        let result = lock.withLock {
+            snapshot = PresentationSnapshot(
+                slides: [],
+                index: 0,
+                version: snapshot.version + 1,
+                deckVersion: snapshot.deckVersion + 1,
+                sourceURL: nil,
+                workspaceRoot: nil,
+                theme: ThemeState(name: "dark")
+            )
+            return (snapshot, Array(observers.values))
+        }
+        result.1.forEach { $0(result.0) }
+        return result.0
+    }
+
+    @discardableResult
     func navigate(by delta: Int) -> Bool {
         navigate(to: currentSnapshot().index + delta)
     }

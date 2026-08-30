@@ -69,6 +69,16 @@ final class PresentationServerTests: XCTestCase {
             try JSONSerialization.jsonObject(with: deckData) as? [String: Any]
         )
         XCTAssertEqual((deck["slides"] as? [String])?.count, 3)
+
+        session.clear()
+        let (clearedData, _) = try await URLSession.shared.data(
+            from: baseURL.appendingPathComponent("state")
+        )
+        let cleared = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: clearedData) as? [String: Any]
+        )
+        XCTAssertEqual(cleared["total"] as? Int, 0)
+        XCTAssertEqual(cleared["sourceBacked"] as? Bool, false)
     }
 
     func testRejectsMissingToken() async throws {

@@ -161,7 +161,7 @@ Deck typography is separate. The bundled defaults use `typography.slide-heading`
 
 The operator window opens at 1280 × 800 pt, cannot shrink below 960 × 640 pt, and uses a full-size content view beneath a transparent titlebar. Its vertical structure is fixed-height header (58 pt), optional error bar (32 pt), flexible content, and fixed-height footer (54 pt).
 
-- **Header:** The filename sits at the leading edge with a 20 pt inset. Open, Slide List, Start/End Presentation, and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Both groups sit 8 pt below the titlebar's geometric center.
+- **Header:** The filename sits at the leading edge with a 20 pt inset. Open, Close, Slide List, Start/End Presentation, and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Both groups sit 8 pt below the titlebar's geometric center.
 - **Content:** A vertical `NSSplitView` holds the current-slide pane and the supporting rail. The divider position persists as `MarkdStageOperatorSplit`; its initial position is 850 pt. The current pane has a 560 pt minimum width. The rail has a 320 pt minimum width and resists compression.
 - **Current slide:** The slide sits inside `spacing.preview-inset` on all sides. `AspectRatioView` fits a centered 16:9 rectangle and uses black letterboxing for remaining space.
 - **Supporting rail:** `spacing.rail-inset` surrounds two equally tall panes separated by the same inset. The upper pane holds the next 16:9 preview; the lower pane holds scrolling speaker notes.
@@ -202,7 +202,7 @@ SF Symbols are the native icon language. The oversized `#`, the spotlight wedge,
 
 ### Operator header
 
-The command row contains four native rounded buttons with leading SF Symbols: Open, Slide List, Start Presentation, and Export PDF. Open is always available. The other three are disabled until a deck exists. While an audience window is open, Start Presentation becomes End Presentation and swaps the play-rectangle symbol for a stop-rectangle symbol; its accessibility label changes with it.
+The command row contains five native rounded buttons with leading SF Symbols: Open, Close, Slide List, Start Presentation, and Export PDF. Open is always available. The other four are disabled until a deck exists. Close unloads the current deck, stops live reload and the audience window, and restores the empty state without closing the application window. While an audience window is open, Start Presentation becomes End Presentation and swaps the play-rectangle symbol for a stop-rectangle symbol; its accessibility label changes with it.
 
 The leading filename is medium-weight secondary text and truncates through the middle. The window title also changes to “[filename] — MarkdStage,” but remains visually hidden in the transparent titlebar.
 

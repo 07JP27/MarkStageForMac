@@ -30,6 +30,12 @@ enum MainMenuBuilder {
     private static func fileMenu(_ delegate: AppDelegate) -> NSMenu {
         let menu = NSMenu(title: "File")
         menu.addItem(item("Open…", action: #selector(delegate.openDocument(_:)), key: "o", target: delegate))
+        menu.addItem(item(
+            "Close Markdown",
+            action: #selector(delegate.closeDocument(_:)),
+            target: delegate
+        ))
+        menu.addItem(.separator())
         let export = item("Export as PDF…", action: #selector(delegate.exportPDF(_:)), key: "e", target: delegate)
         export.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(export)

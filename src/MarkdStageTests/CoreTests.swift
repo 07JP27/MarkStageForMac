@@ -138,6 +138,26 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(snapshot.deckVersion, 2)
     }
 
+    func testSessionClearRemovesDeckAndSourceState() {
+        let session = PresentationSession()
+        let root = URL(fileURLWithPath: "/tmp")
+        let loaded = session.load(
+            DeckDocument(slides: ["a", "b"], metadata: [:], theme: "light", themeFile: ""),
+            sourceURL: root.appendingPathComponent("deck.md"),
+            workspaceRoot: root
+        )
+
+        let cleared = session.clear()
+
+        XCTAssertTrue(cleared.slides.isEmpty)
+        XCTAssertEqual(cleared.index, 0)
+        XCTAssertNil(cleared.sourceURL)
+        XCTAssertNil(cleared.workspaceRoot)
+        XCTAssertEqual(cleared.theme.name, "dark")
+        XCTAssertEqual(cleared.version, loaded.version + 1)
+        XCTAssertEqual(cleared.deckVersion, loaded.deckVersion + 1)
+    }
+
     func testPathSecurityRejectsTraversalAndSymlinkEscape() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("MarkdStagePathTests-\(UUID().uuidString)", isDirectory: true)

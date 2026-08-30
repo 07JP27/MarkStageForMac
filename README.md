@@ -18,6 +18,7 @@
 ## Highlights
 
 - Open `.md` / `.markdown` from Finder, the Open panel, drag and drop, or a command-line path
+- Close the current deck and return to the empty state without quitting the app
 - Current slide, next slide, speaker notes, page counter, and slide list in one operator window
 - Separate audience window with native macOS full screen and secondary-display placement
 - Live reload after atomic or in-place Markdown saves while preserving the current position
@@ -48,6 +49,7 @@ Developer ID signing and notarization are supported for maintainer builds.
 3. Navigate with the controls, Space, Page Up/Down, or Left/Right Arrow.
 4. Choose **Presentation → Start or End Presentation** to open the audience window.
 5. Move the audience window to the target display and choose **View → Toggle Audience Full Screen**.
+6. Choose **File → Close Markdown** or the **Close** button to unload the deck.
 
 Slides are separated by `---`. Optional front matter controls layout and theme:
 

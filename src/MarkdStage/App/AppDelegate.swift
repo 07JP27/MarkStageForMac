@@ -57,6 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         mainWindowController?.openDocument(sender)
     }
 
+    @objc func closeDocument(_ sender: Any?) {
+        mainWindowController?.closeDocument(sender)
+    }
+
     @objc func previousSlide(_ sender: Any?) {
         mainWindowController?.previousSlide(sender)
     }
