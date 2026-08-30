@@ -171,7 +171,7 @@ The native shell has no alternate compact reflow below its minimum size; users r
 
 The audience window opens on the first non-main display when available, otherwise on the main display. Its initial 16:9 frame is centered at 88% of the display's visible bounds and capped at 1280 × 720 pt. The window cannot shrink below 640 × 360 pt but remains freely resizable after opening. Native macOS full screen expands the audience view; no custom full-screen shell is added.
 
-The renderer itself is one viewport-sized slide with no page scrolling. Standard deck padding scales between 30–68 px vertically and 40–104 px horizontally. Only content explicitly marked as overflowing becomes internally scrollable. PDF mode fixes each page to 13.333333 × 7.5 in (1280 × 720 CSS px) and removes navigation, animations, and editing controls.
+The renderer itself is one viewport-sized slide with no page scrolling. Operator previews render against the same canonical 1280 × 720 CSS viewport and use `WKWebView.pageZoom` to fit their native 16:9 panes; they must never reflow at the smaller pane size. Standard deck padding scales between 30–68 px vertically and 40–104 px horizontally. Only content explicitly marked as overflowing becomes internally scrollable. PDF mode fixes each page to 13.333333 × 7.5 in (1280 × 720 CSS px) and removes navigation, animations, and editing controls.
 
 ## Elevation & Depth
 

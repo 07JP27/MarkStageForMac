@@ -1650,6 +1650,18 @@ function connectEvents() {
   }
 }
 
+function fitPreviewViewport() {
+  if (!previewMode) return;
+  const stage = document.getElementById("stage");
+  if (!stage) return;
+  const width = 1280;
+  const height = 720;
+  const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
+  stage.style.left = `${Math.max(0, (window.innerWidth - width * scale) / 2)}px`;
+  stage.style.top = `${Math.max(0, (window.innerHeight - height * scale) / 2)}px`;
+  stage.style.transform = `scale(${scale})`;
+}
+
 function init() {
   try {
     window.marked.setOptions({ gfm: true, breaks: false });
@@ -1676,6 +1688,7 @@ function init() {
     previewOffset = Math.max(-1, Math.min(1, Number(params.get("offset")) || 0));
     navigationEnabled = params.get("navigate") === "1" && previewOffset === 0;
     document.body.classList.add("presenter-mode", "preview-mode");
+    fitPreviewViewport();
   } else if (params.get("present") === "1") {
     presenterMode = true;
     document.body.classList.add("presenter-mode");
@@ -1694,7 +1707,10 @@ function init() {
     wirePointerNavigation();
     wirePreviewKeyboardNavigation();
   }
-  window.addEventListener("resize", scheduleLayoutRefresh);
+  window.addEventListener("resize", () => {
+    fitPreviewViewport();
+    scheduleLayoutRefresh();
+  });
   if (document.fonts?.ready) {
     document.fonts.ready.then(scheduleLayoutRefresh).catch(() => {});
   }

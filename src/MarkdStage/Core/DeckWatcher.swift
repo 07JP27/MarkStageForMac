@@ -22,7 +22,7 @@ final class DeckWatcher: @unchecked Sendable {
         }
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: descriptor,
-            eventMask: [.write, .rename, .delete, .attrib],
+            eventMask: [.write, .rename, .delete],
             queue: .main
         )
         source.setEventHandler { [weak self] in
@@ -64,7 +64,7 @@ final class DeckWatcher: @unchecked Sendable {
         }
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: descriptor,
-            eventMask: [.write, .extend, .attrib, .rename, .delete, .revoke],
+            eventMask: [.write, .extend, .rename, .delete, .revoke],
             queue: .main
         )
         source.setEventHandler { [weak self, weak source] in

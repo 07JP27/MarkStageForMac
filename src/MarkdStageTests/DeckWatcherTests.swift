@@ -49,6 +49,23 @@ final class DeckWatcherTests: XCTestCase {
         await fulfillment(of: [changed], timeout: 4)
     }
 
+    func testReadingDoesNotTriggerChange() async throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let watcher = DeckWatcher()
+        defer { watcher.stop() }
+        let changed = expectation(description: "Read is ignored")
+        changed.isInverted = true
+        try watcher.start(fileURL: fixture.file) {
+            changed.fulfill()
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+        _ = try Data(contentsOf: fixture.file)
+
+        await fulfillment(of: [changed], timeout: 0.6)
+    }
+
     private func makeFixture() throws -> (root: URL, file: URL) {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("MarkdStageWatcherTests-\(UUID().uuidString)", isDirectory: true)
