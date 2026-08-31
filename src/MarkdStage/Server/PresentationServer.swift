@@ -2,6 +2,16 @@ import Foundation
 import Network
 
 final class PresentationServer: @unchecked Sendable {
+    private struct ExportAssetContext: Sendable {
+        let sourceURL: URL?
+        let workspaceRoot: URL?
+        let themeAssetRoot: URL?
+        var lastAccessedAt: Date
+    }
+
+    private static let exportContextLifetime: TimeInterval = 10 * 60
+    private static let exportContextLimit = 16
+
     private let session: PresentationSession
     private let token = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
     private let queue = DispatchQueue(label: "dev.jp27.MarkdStage.presentation-server")
@@ -10,6 +20,7 @@ final class PresentationServer: @unchecked Sendable {
     private var observerID: UUID?
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private var eventConnections: [ObjectIdentifier: NWConnection] = [:]
+    private var exportAssetContexts: [String: ExportAssetContext] = [:]
     private var currentPort: UInt16?
     private var presenterRunning = false
     private let webRoot: URL
@@ -25,9 +36,11 @@ final class PresentationServer: @unchecked Sendable {
             }
             self.webRoot = PathSecurity.canonicalURL(bundledRoot)
         }
-        guard FileManager.default.fileExists(
-            atPath: self.webRoot.appendingPathComponent("index.html").path
-        ) else {
+        guard
+            FileManager.default.fileExists(
+                atPath: self.webRoot.appendingPathComponent("index.html").path
+            )
+        else {
             throw DeckLoadError(message: "Presentation renderer assets are missing.")
         }
     }
@@ -54,14 +67,17 @@ final class PresentationServer: @unchecked Sendable {
             switch state {
             case .ready:
                 guard let port = listener.port?.rawValue else {
-                    startState.finish(.failure(DeckLoadError(message: "Presentation server did not expose a port.")))
+                    startState.finish(
+                        .failure(
+                            DeckLoadError(message: "Presentation server did not expose a port.")))
                     return
                 }
                 startState.finish(.success(port))
-            case let .failed(error):
+            case .failed(let error):
                 startState.finish(.failure(error))
             case .cancelled:
-                startState.finish(.failure(DeckLoadError(message: "Presentation server stopped during startup.")))
+                startState.finish(
+                    .failure(DeckLoadError(message: "Presentation server stopped during startup.")))
             default:
                 break
             }
@@ -79,17 +95,18 @@ final class PresentationServer: @unchecked Sendable {
         }
 
         switch startState.result {
-        case let .success(port):
+        case .success(let port):
             stateLock.withLock {
                 currentPort = port
             }
             observerID = session.addObserver { [weak self] snapshot in
                 self?.broadcast(version: snapshot.version)
             }
-        case let .failure(error):
+        case .failure(let error):
             listener.cancel()
             self.listener = nil
-            throw DeckLoadError(message: "Presentation server could not start: \(error.localizedDescription)")
+            throw DeckLoadError(
+                message: "Presentation server could not start: \(error.localizedDescription)")
         case .none:
             listener.cancel()
             self.listener = nil
@@ -111,6 +128,7 @@ final class PresentationServer: @unchecked Sendable {
         }
         stateLock.withLock {
             currentPort = nil
+            exportAssetContexts.removeAll()
         }
     }
 
@@ -176,14 +194,16 @@ final class PresentationServer: @unchecked Sendable {
             return
         }
         if request.method == "POST",
-           let origin = request.headers["origin"],
-           origin != "http://\(expectedHost)" {
+            let origin = request.headers["origin"],
+            origin != "http://\(expectedHost)"
+        {
             send(.text("Forbidden.", status: 403), on: connection)
             return
         }
 
         guard let components = URLComponents(string: "http://\(expectedHost)\(request.target)"),
-              components.path.hasPrefix("/\(token)") else {
+            components.path.hasPrefix("/\(token)")
+        else {
             send(.text("Not found.", status: 404), on: connection)
             return
         }
@@ -206,7 +226,9 @@ final class PresentationServer: @unchecked Sendable {
                 on: connection
             )
         case ("GET", "/state"):
-            sendState(offset: components.queryItem(named: "offset").flatMap(Int.init) ?? 0, on: connection)
+            sendState(
+                offset: components.queryItem(named: "offset").flatMap(Int.init) ?? 0, on: connection
+            )
         case ("GET", "/deck"):
             sendDeck(on: connection)
         case ("POST", "/navigate"):
@@ -214,13 +236,27 @@ final class PresentationServer: @unchecked Sendable {
         case ("GET", "/events"):
             openEventStream(connection)
         case ("GET", let path) where path.hasPrefix("/assets/"):
-            sendDeckAsset(String(path.dropFirst("/assets/".count)), on: connection)
+            sendDeckAsset(
+                String(path.dropFirst("/assets/".count)),
+                exportToken: components.queryItem(named: "exportToken"),
+                on: connection
+            )
         case ("GET", let path) where path.hasPrefix("/theme-assets/"):
-            sendThemeAsset(String(path.dropFirst("/theme-assets/".count)), on: connection)
+            sendThemeAsset(
+                String(path.dropFirst("/theme-assets/".count)),
+                exportToken: components.queryItem(named: "exportToken"),
+                on: connection
+            )
         case ("GET", "/export-data"):
-            sendExportData(on: connection)
+            sendExportData(
+                exportToken: components.queryItem(named: "token"),
+                on: connection
+            )
         case ("POST", "/export-status"):
-            send(.json(["ok": true]), on: connection)
+            sendExportStatus(
+                exportToken: components.queryItem(named: "token"),
+                on: connection
+            )
         default:
             send(.text("Not found.", status: 404), on: connection)
         }
@@ -229,48 +265,53 @@ final class PresentationServer: @unchecked Sendable {
     private func sendState(offset: Int, on connection: NWConnection) {
         let snapshot = session.currentSnapshot()
         let safeOffset = min(max(offset, -1), 1)
-        let target = snapshot.total == 0
+        let target =
+            snapshot.total == 0
             ? 0
             : min(max(snapshot.index + safeOffset, 0), snapshot.total - 1)
         let markdown = snapshot.total == 0 ? "" : snapshot.slides[target]
-        let customThemeMeta = snapshot.theme.metadataJSON.isEmpty
+        let customThemeMeta =
+            snapshot.theme.metadataJSON.isEmpty
             ? NSNull()
             : (try? JSONSerialization.jsonObject(
                 with: Data(snapshot.theme.metadataJSON.utf8)
             )) ?? NSNull()
         let isPresenterRunning = stateLock.withLock { presenterRunning }
-        send(.json([
-            "version": snapshot.version,
-            "deckVersion": snapshot.deckVersion,
-            "markdown": markdown,
-            "index": target,
-            "total": snapshot.total,
-            "theme": snapshot.theme.name,
-            "themeLocked": false,
-            "customThemeCss": snapshot.theme.css,
-            "customThemeMeta": customThemeMeta,
-            "mode": "deck",
-            "sourceBacked": snapshot.sourceURL != nil,
-            "sourceMode": "live",
-            "sourceWatchStatus": snapshot.sourceURL == nil ? "inactive" : "watching",
-            "sourceWatchError": "",
-            "presenterRunning": isPresenterRunning,
-            "architectureEdit": false,
-            "architectureDetailedEdit": false
-        ]), on: connection)
+        send(
+            .json([
+                "version": snapshot.version,
+                "deckVersion": snapshot.deckVersion,
+                "markdown": markdown,
+                "index": target,
+                "total": snapshot.total,
+                "theme": snapshot.theme.name,
+                "themeLocked": false,
+                "customThemeCss": snapshot.theme.css,
+                "customThemeMeta": customThemeMeta,
+                "mode": "deck",
+                "sourceBacked": snapshot.sourceURL != nil,
+                "sourceMode": "live",
+                "sourceWatchStatus": snapshot.sourceURL == nil ? "inactive" : "watching",
+                "sourceWatchError": "",
+                "presenterRunning": isPresenterRunning,
+                "architectureEdit": false,
+                "architectureDetailedEdit": false,
+            ]), on: connection)
     }
 
     private func sendDeck(on connection: NWConnection) {
         let snapshot = session.currentSnapshot()
-        send(.json([
-            "deckVersion": snapshot.deckVersion,
-            "slides": snapshot.slides
-        ]), on: connection)
+        send(
+            .json([
+                "deckVersion": snapshot.deckVersion,
+                "slides": snapshot.slides,
+            ]), on: connection)
     }
 
     private func navigate(_ request: HTTPRequest, on connection: NWConnection) {
         guard let object = try? JSONSerialization.jsonObject(with: request.body),
-              let payload = object as? [String: Any] else {
+            let payload = object as? [String: Any]
+        else {
             send(.json(["ok": false, "error": "invalid_json"], status: 400), on: connection)
             return
         }
@@ -292,14 +333,15 @@ final class PresentationServer: @unchecked Sendable {
         }
         let changed = index.map(session.navigate(to:)) ?? session.navigate(by: delta ?? 0)
         let snapshot = session.currentSnapshot()
-        send(.json([
-            "ok": true,
-            "changed": changed,
-            "version": snapshot.version,
-            "index": snapshot.index,
-            "total": snapshot.total,
-            "mode": "deck"
-        ]), on: connection)
+        send(
+            .json([
+                "ok": true,
+                "changed": changed,
+                "version": snapshot.version,
+                "index": snapshot.index,
+                "total": snapshot.total,
+                "mode": "deck",
+            ]), on: connection)
     }
 
     private func openEventStream(_ connection: NWConnection) {
@@ -312,16 +354,18 @@ final class PresentationServer: @unchecked Sendable {
             "X-Content-Type-Options: nosniff",
             "",
             ": connected",
-            ""
+            "",
         ].joined(separator: "\r\n")
         let id = ObjectIdentifier(connection)
         eventConnections[id] = connection
-        connection.send(content: Data(response.utf8), isComplete: false, completion: .contentProcessed {
-            [weak connection] error in
-            if error != nil {
-                connection?.cancel()
-            }
-        })
+        connection.send(
+            content: Data(response.utf8), isComplete: false,
+            completion: .contentProcessed {
+                [weak connection] error in
+                if error != nil {
+                    connection?.cancel()
+                }
+            })
     }
 
     private func broadcast(version: Int64) {
@@ -329,28 +373,48 @@ final class PresentationServer: @unchecked Sendable {
             guard let self else { return }
             let payload = Data("data: \(version)\n\n".utf8)
             for (id, connection) in self.eventConnections {
-                connection.send(content: payload, isComplete: false, completion: .contentProcessed {
-                    [weak self, weak connection] error in
-                    guard error != nil, let self, let connection else { return }
-                    self.queue.async {
-                        self.eventConnections.removeValue(forKey: id)
-                        self.connections.removeValue(forKey: id)
-                        connection.cancel()
-                    }
-                })
+                connection.send(
+                    content: payload, isComplete: false,
+                    completion: .contentProcessed {
+                        [weak self, weak connection] error in
+                        guard error != nil, let self, let connection else { return }
+                        self.queue.async {
+                            self.eventConnections.removeValue(forKey: id)
+                            self.connections.removeValue(forKey: id)
+                            connection.cancel()
+                        }
+                    })
             }
         }
     }
 
-    private func sendDeckAsset(_ relativePath: String, on connection: NWConnection) {
-        let snapshot = session.currentSnapshot()
-        guard let sourceURL = snapshot.sourceURL, let workspaceRoot = snapshot.workspaceRoot else {
+    private func sendDeckAsset(
+        _ relativePath: String,
+        exportToken: String?,
+        on connection: NWConnection
+    ) {
+        let sourceURL: URL?
+        let workspaceRoot: URL?
+        if let exportToken {
+            guard let context = exportAssetContext(for: exportToken) else {
+                send(.text("Not found.", status: 404), on: connection)
+                return
+            }
+            sourceURL = context.sourceURL
+            workspaceRoot = context.workspaceRoot
+        } else {
+            let snapshot = session.currentSnapshot()
+            sourceURL = snapshot.sourceURL
+            workspaceRoot = snapshot.workspaceRoot
+        }
+        guard let sourceURL, let workspaceRoot else {
             send(.text("Not found.", status: 404), on: connection)
             return
         }
         let roots = [
-            sourceURL.deletingLastPathComponent().appendingPathComponent("assets", isDirectory: true),
-            workspaceRoot.appendingPathComponent("assets", isDirectory: true)
+            sourceURL.deletingLastPathComponent().appendingPathComponent(
+                "assets", isDirectory: true),
+            workspaceRoot.appendingPathComponent("assets", isDirectory: true),
         ]
         for root in roots where FileManager.default.fileExists(atPath: root.path) {
             if let file = PathSecurity.resolveFile(in: root, relativePath: relativePath) {
@@ -361,29 +425,114 @@ final class PresentationServer: @unchecked Sendable {
         send(.text("Not found.", status: 404), on: connection)
     }
 
-    private func sendThemeAsset(_ relativePath: String, on connection: NWConnection) {
-        guard let root = session.currentSnapshot().theme.assetRoot,
-              let file = PathSecurity.resolveFile(in: root, relativePath: relativePath) else {
+    private func sendThemeAsset(
+        _ relativePath: String,
+        exportToken: String?,
+        on connection: NWConnection
+    ) {
+        let root: URL?
+        if let exportToken {
+            guard let context = exportAssetContext(for: exportToken) else {
+                send(.text("Not found.", status: 404), on: connection)
+                return
+            }
+            root = context.themeAssetRoot
+        } else {
+            root = session.currentSnapshot().theme.assetRoot
+        }
+        guard let root,
+            let file = PathSecurity.resolveFile(in: root, relativePath: relativePath)
+        else {
             send(.text("Not found.", status: 404), on: connection)
             return
         }
         sendFile(file, on: connection)
     }
 
-    private func sendExportData(on connection: NWConnection) {
+    private func sendExportData(
+        exportToken: String?,
+        on connection: NWConnection
+    ) {
+        guard let exportToken,
+            exportToken.range(
+                of: #"^[0-9A-Fa-f-]{36}$"#,
+                options: .regularExpression
+            ) != nil
+        else {
+            send(.text("Invalid export token.", status: 400), on: connection)
+            return
+        }
         let snapshot = session.currentSnapshot()
-        let customThemeMeta = snapshot.theme.metadataJSON.isEmpty
+        storeExportAssetContext(
+            ExportAssetContext(
+                sourceURL: snapshot.sourceURL,
+                workspaceRoot: snapshot.workspaceRoot,
+                themeAssetRoot: snapshot.theme.assetRoot,
+                lastAccessedAt: Date()
+            ),
+            for: exportToken
+        )
+        let customThemeMeta =
+            snapshot.theme.metadataJSON.isEmpty
             ? NSNull()
             : (try? JSONSerialization.jsonObject(
                 with: Data(snapshot.theme.metadataJSON.utf8)
             )) ?? NSNull()
-        send(.json([
-            "slides": snapshot.slides,
-            "theme": snapshot.theme.name,
-            "customThemeCss": snapshot.theme.css,
-            "customThemeMeta": customThemeMeta,
-            "themeLocked": false
-        ]), on: connection)
+        send(
+            .json([
+                "slides": snapshot.slides,
+                "theme": snapshot.theme.name,
+                "customThemeCss": snapshot.theme.css,
+                "customThemeMeta": customThemeMeta,
+                "themeLocked": false,
+            ]), on: connection)
+    }
+
+    private func storeExportAssetContext(
+        _ context: ExportAssetContext,
+        for token: String
+    ) {
+        stateLock.withLock {
+            pruneExportAssetContexts(now: context.lastAccessedAt)
+            if exportAssetContexts.count >= Self.exportContextLimit,
+                let oldest = exportAssetContexts.min(by: {
+                    $0.value.lastAccessedAt < $1.value.lastAccessedAt
+                })?.key
+            {
+                exportAssetContexts.removeValue(forKey: oldest)
+            }
+            exportAssetContexts[token] = context
+        }
+    }
+
+    private func exportAssetContext(for token: String) -> ExportAssetContext? {
+        stateLock.withLock {
+            let now = Date()
+            pruneExportAssetContexts(now: now)
+            guard var context = exportAssetContexts[token] else { return nil }
+            context.lastAccessedAt = now
+            exportAssetContexts[token] = context
+            return context
+        }
+    }
+
+    private func pruneExportAssetContexts(now: Date) {
+        exportAssetContexts = exportAssetContexts.filter {
+            now.timeIntervalSince($0.value.lastAccessedAt) <= Self.exportContextLifetime
+        }
+    }
+
+    private func sendExportStatus(
+        exportToken: String?,
+        on connection: NWConnection
+    ) {
+        guard let exportToken,
+            exportAssetContext(for: exportToken) != nil
+        else {
+            send(.text("Export context not found.", status: 404), on: connection)
+            return
+        }
+        send(.json(["ok": true]), on: connection)
     }
 
     private func sendStatic(root: URL, relativePath: String, on connection: NWConnection) {
@@ -412,19 +561,21 @@ final class PresentationServer: @unchecked Sendable {
             "X-Content-Type-Options: nosniff",
             "Connection: close",
             "",
-            ""
+            "",
         ]
         var payload = Data(headers.joined(separator: "\r\n").utf8)
         payload.append(response.body)
-        connection.send(content: payload, isComplete: true, completion: .contentProcessed {
-            [weak connection] _ in
-            connection?.cancel()
-        })
+        connection.send(
+            content: payload, isComplete: true,
+            completion: .contentProcessed {
+                [weak connection] _ in
+                connection?.cancel()
+            })
     }
 
     private static let contentSecurityPolicy =
-        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
-        "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'"
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+        + "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'"
 
     private static func mimeType(for url: URL) -> String {
         switch url.pathExtension.lowercased() {
@@ -484,7 +635,8 @@ private struct HTTPRequest: Sendable {
     static func parse(_ data: Data) -> HTTPRequest? {
         let marker = Data("\r\n\r\n".utf8)
         guard let headerRange = data.range(of: marker),
-              let headerText = String(data: data[..<headerRange.lowerBound], encoding: .utf8) else {
+            let headerText = String(data: data[..<headerRange.lowerBound], encoding: .utf8)
+        else {
             return nil
         }
         let lines = headerText.components(separatedBy: "\r\n")
@@ -519,7 +671,8 @@ private struct HTTPResponse: Sendable {
     let body: Data
 
     static func text(_ value: String, status: Int = 200) -> HTTPResponse {
-        HTTPResponse(status: status, contentType: "text/plain; charset=utf-8", body: Data(value.utf8))
+        HTTPResponse(
+            status: status, contentType: "text/plain; charset=utf-8", body: Data(value.utf8))
     }
 
     static func data(_ value: Data, contentType: String, status: Int = 200) -> HTTPResponse {
@@ -528,12 +681,13 @@ private struct HTTPResponse: Sendable {
 
     static func json(_ value: [String: Any], status: Int = 200) -> HTTPResponse {
         let data = (try? JSONSerialization.data(withJSONObject: value)) ?? Data("{}".utf8)
-        return HTTPResponse(status: status, contentType: "application/json; charset=utf-8", body: data)
+        return HTTPResponse(
+            status: status, contentType: "application/json; charset=utf-8", body: data)
     }
 }
 
-private extension URLComponents {
-    func queryItem(named name: String) -> String? {
+extension URLComponents {
+    fileprivate func queryItem(named name: String) -> String? {
         queryItems?.first(where: { $0.name == name })?.value
     }
 }

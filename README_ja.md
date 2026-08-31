@@ -25,10 +25,14 @@
 - GFM、コードハイライト、Mermaid、Architecture DSL、ローカル画像、ノート、カスタムテーマ
 - Windows版と共通の `dark` / `light` / `microsoft` テーマとレンダラー
 - CSP、同一オリジン検証、正規化パス境界を備えたローカル専用レンダラー
-- WebKitによるPDF書き出し
+- 画面と同じ1280 × 720固定WebKitキャンバスからのWYSIWYG PDF書き出し
 - テレメトリなし、実行時の外部ネットワーク依存なし
 
 Architecture DSLの**表示**には対応しています。Windows版のArchitecture編集機能とSurface Pen連携はmacOS版にはありません。
+
+現在／次スライド、オーディエンス、サムネイル、PDFは同じ固定レイアウトを使います。PDFにはcanonical canvasの高解像度スナップショットを格納するため、グラデーション、ローカル画像、Mermaid、Architecture図が表示と書き出しで変化しません。
+
+見た目の一致を優先したラスタPDFのため、テキストの選択・検索はできず、ベクタPDFよりファイルサイズが大きくなります。
 
 ## インストール
 
@@ -99,6 +103,7 @@ make run
 make run-cli MARKDSTAGE_TARGET=/path/to/deck.md
 make launch-check
 make cli-launch-check
+make pdf-export-check
 make release VERSION=0.1.0
 make dmg VERSION=0.1.0
 make generate

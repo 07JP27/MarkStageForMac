@@ -169,7 +169,9 @@ The native shell has no alternate compact reflow below its minimum size; users r
 
 The audience window opens on the first non-main display when available, otherwise on the main display. Its initial 16:9 frame is centered at 88% of the display's visible bounds and capped at 1280 × 720 pt. The window cannot shrink below 640 × 360 pt but remains freely resizable after opening. Native macOS full screen expands the audience view; no custom full-screen shell is added.
 
-The renderer itself is one viewport-sized slide with no page scrolling. Operator previews render against the same canonical 1280 × 720 CSS viewport and fit their native 16:9 panes with a CSS transform; they never reflow at the smaller pane size. Standard deck padding scales between 30–68 px vertically and 40–104 px horizontally. Only content explicitly marked as overflowing becomes internally scrollable. PDF mode fixes each page to 13.333333 × 7.5 in (1280 × 720 CSS px) and removes navigation, animations, and editing controls.
+The renderer owns one canonical 1280 × 720 slide canvas with no page scrolling. Operator previews, next-slide previews, the audience window, and full screen aspect-fit that canvas with black letterboxing and never reflow its content at the host size. All asynchronous media is completed in an untransformed 1280 × 720 staging surface before the finished slide is atomically presented. Standard deck padding scales between 30–68 px vertically and 40–104 px horizontally inside that fixed canvas. Only content explicitly marked as overflowing becomes internally scrollable.
+
+PDF export asks the same single-slide renderer to prepare one canonical slide at a time. Each completed canvas is captured at 2× resolution and embedded into a 1280 × 720 PDF page, then the pages are assembled in deck order. PDF-only backgrounds and stacked multi-slide layout do not exist; export mode differs only by hiding navigation/editing UI and disabling motion. This raster page contract preserves gradients, local images, Mermaid, Architecture, typography, and geometry exactly as painted on screen, at the explicit cost of non-selectable/non-searchable text and larger files than a vector PDF.
 
 ## Elevation & Depth
 
@@ -208,7 +210,7 @@ The leading filename is medium-weight secondary text and truncates through the m
 
 The left sidebar is the only slide-list interface. It uses a native vertically scrolling collection view with reusable cells; the former header button, modal list, menu item, and ⌘L shortcut do not exist.
 
-Each cell presents a static 16:9 image generated from the same renderer used for PDF output, followed by its page number and derived title. The current slide receives a native accent selection treatment. Clicking a cell navigates immediately; navigation from buttons, keyboard, presenter, or live reload updates selection and scrolls the current item into view only when necessary.
+Each cell presents a static 16:9 image generated from the same canonical snapshot pages used for PDF output, followed by its page number and derived title. The current slide receives a native accent selection treatment. Clicking a cell navigates immediately; navigation from buttons, keyboard, presenter, or live reload updates selection and scrolls the current item into view only when necessary.
 
 The sidebar never embeds one `WKWebView` per slide. One hidden renderer creates an in-memory PDF once per `deckVersion`; PDF pages become cached thumbnail images. Until a thumbnail is ready, the cell keeps its page/title and a neutral placeholder. VoiceOver sees one item label, “Slide N: title,” rather than a duplicate slide DOM.
 
@@ -232,7 +234,7 @@ No brand field, spotlight, oversized mark, or slide-like 16:9 artwork appears in
 
 A deck load error reveals a 32 pt bar directly under the header, with a low-opacity system-red background and medium system-red text. If a previous deck rendered successfully, it remains visible and the message says so. The footer simultaneously names the failed file.
 
-Open and Export PDF use native open/save sheets. PDF failures use a warning alert sheet titled “Couldn’t save the PDF.” Starting another export while one is active produces the system alert sound rather than another panel.
+Open and Export PDF use native open/save sheets. Export waits for fonts, local images, Mermaid, and Architecture assets before capturing each page. A missing or undecodable supported asset fails the whole export rather than saving a partial PDF; PDF failures use a warning alert sheet titled “Couldn’t save the PDF.” Starting another export while one is active produces the system alert sound rather than another panel.
 
 ### Audience window and renderer controls
 

@@ -4,8 +4,7 @@ set -eu
 APP_PATH="${1:-build/DerivedData/Build/Products/Debug/MarkdStage.app}"
 DECK_PATH="${2:-samples/demo.md}"
 EXPECTED_PAGE_COUNT="${3:-5}"
-EXPECTED_TEXT="${4:-Markdown}"
-TIMEOUT_SECONDS="${PDF_EXPORT_SMOKE_TIMEOUT_SECONDS:-60}"
+TIMEOUT_SECONDS="${PDF_EXPORT_SMOKE_TIMEOUT_SECONDS:-180}"
 
 resolve_path() {
   path="$1"
@@ -93,7 +92,6 @@ import PDFKit
 
 let url = URL(fileURLWithPath: CommandLine.arguments[1])
 let expectedPages = Int(CommandLine.arguments[2])!
-let expectedText = CommandLine.arguments[3]
 guard let document = PDFDocument(url: url) else {
     fputs("PDFKit could not open the output PDF.\n", stderr)
     exit(1)
@@ -102,17 +100,48 @@ guard document.pageCount == expectedPages else {
     fputs("Expected \(expectedPages) PDF pages, found \(document.pageCount).\n", stderr)
     exit(1)
 }
-let renderedText = (0..<document.pageCount)
-    .compactMap { document.page(at: $0)?.string }
-    .joined(separator: "\n")
-guard renderedText.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20 else {
-    fputs("PDF does not contain meaningful rendered text.\n", stderr)
-    exit(1)
-}
-guard renderedText.localizedCaseInsensitiveContains(expectedText) else {
-    fputs("PDF text does not contain expected marker: \(expectedText)\n", stderr)
-    exit(1)
-}' "$OUTPUT_PDF" "$EXPECTED_PAGE_COUNT" "$EXPECTED_TEXT"
+for index in 0..<document.pageCount {
+    guard let page = document.page(at: index) else {
+        fputs("PDF page \(index + 1) is unavailable.\n", stderr)
+        exit(1)
+    }
+    let bounds = page.bounds(for: .mediaBox)
+    guard bounds.width > 0,
+          bounds.height > 0,
+          abs(bounds.width / bounds.height - 16.0 / 9.0) < 0.001 else {
+        fputs("PDF page \(index + 1) is not 16:9.\n", stderr)
+        exit(1)
+    }
+    let thumbnail = page.thumbnail(
+        of: NSSize(width: 320, height: 180),
+        for: .mediaBox
+    )
+    guard let data = thumbnail.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: data),
+          let pixels = bitmap.bitmapData else {
+        fputs("Could not inspect PDF page \(index + 1).\n", stderr)
+        exit(1)
+    }
+    let bytesPerPixel = max(bitmap.bitsPerPixel / 8, 1)
+    var minimum = 255
+    var maximum = 0
+    for y in stride(from: 0, to: bitmap.pixelsHigh, by: 4) {
+        for x in stride(from: 0, to: bitmap.pixelsWide, by: 4) {
+            let offset = y * bitmap.bytesPerRow + x * bytesPerPixel
+            let channelCount = min(3, bytesPerPixel)
+            guard channelCount > 0 else { continue }
+            let value = (0..<channelCount)
+                .map { Int(pixels[offset + $0]) }
+                .reduce(0, +) / channelCount
+            minimum = min(minimum, value)
+            maximum = max(maximum, value)
+        }
+    }
+    guard maximum - minimum >= 8 else {
+        fputs("PDF page \(index + 1) appears blank.\n", stderr)
+        exit(1)
+    }
+}' "$OUTPUT_PDF" "$EXPECTED_PAGE_COUNT"
 
 cat "$STDOUT_LOG"
 echo "MarkdStage live WebKit PDF export smoke test passed."

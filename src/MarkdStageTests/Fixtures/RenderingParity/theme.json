@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "cover": {
+    "background": {
+      "image": "assets/parity-background.svg",
+      "alt": ""
+    },
+    "logo": {
+      "image": "assets/parity-logo.svg",
+      "alt": "Rendering parity"
+    }
+  },
+  "backcover": {
+    "logo": {
+      "image": "assets/parity-logo.svg",
+      "alt": "Rendering parity"
+    },
+    "copyright": "MarkdStage renderer parity"
+  }
+}

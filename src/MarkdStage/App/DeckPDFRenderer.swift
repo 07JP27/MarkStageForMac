@@ -4,13 +4,14 @@ import WebKit
 
 @MainActor
 final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
+    private static let stepTimeoutSeconds: TimeInterval = 30
+
     enum RenderError: LocalizedError, Equatable {
         case alreadyRendering
         case invalidRenderURL
         case loadFailed(String)
         case timedOut(String)
-        case measurementFailed
-        case noPrintableSlides
+        case invalidRenderState
         case pageCreationFailed(String)
 
         var errorDescription: String? {
@@ -19,32 +20,36 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
                 "PDF rendering is already in progress."
             case .invalidRenderURL:
                 "PDF renderer URL could not be created."
-            case let .loadFailed(details):
+            case .loadFailed(let details):
                 "PDF renderer failed to load: \(details)"
-            case let .timedOut(details):
+            case .timedOut(let details):
                 "PDF rendering timed out. \(details)"
-            case .measurementFailed:
-                "Could not measure the rendered PDF pages."
-            case .noPrintableSlides:
-                "The rendered deck did not contain printable slides."
-            case let .pageCreationFailed(details):
+            case .invalidRenderState:
+                "The PDF renderer did not provide a valid canonical slide state."
+            case .pageCreationFailed(let details):
                 "Could not save the PDF: \(details)"
             }
         }
     }
 
-    private weak var parentWindow: NSWindow?
     private let baseURL: URL
+    private let onDiagnostics: (@MainActor (Int, String) -> Void)?
     private var webView: WKWebView?
     private var renderWindow: NSWindow?
     private var activeNavigation: WKNavigation?
     private var activeRenderID: UUID?
+    private var stepTimeout: DispatchWorkItem?
+    private var stepTimeoutGeneration: UUID?
     private var completion: (@MainActor (Result<PDFDocument, Error>) -> Void)?
     private var activeRetain: DeckPDFRenderer?
 
-    init(parentWindow: NSWindow?, baseURL: URL) {
-        self.parentWindow = parentWindow
+    init(
+        parentWindow _: NSWindow?,
+        baseURL: URL,
+        onDiagnostics: (@MainActor (Int, String) -> Void)? = nil
+    ) {
         self.baseURL = baseURL
+        self.onDiagnostics = onDiagnostics
     }
 
     func render(
@@ -60,16 +65,18 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
         self.completion = completion
         activeRetain = self
 
-        guard var components = URLComponents(
-            url: baseURL,
-            resolvingAgainstBaseURL: false
-        ) else {
+        guard
+            var components = URLComponents(
+                url: baseURL,
+                resolvingAgainstBaseURL: false
+            )
+        else {
             complete(.failure(RenderError.invalidRenderURL), renderID: renderID)
             return
         }
         components.queryItems = [
             URLQueryItem(name: "print", value: "1"),
-            URLQueryItem(name: "token", value: renderID.uuidString)
+            URLQueryItem(name: "token", value: renderID.uuidString),
         ]
         guard let renderURL = components.url else {
             complete(.failure(RenderError.invalidRenderURL), renderID: renderID)
@@ -94,11 +101,10 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
             webView.navigationDelegate = self
             webView.isInspectable = false
 
-            let origin = parentWindow?.frame.origin ?? .zero
             let window = NSWindow(
                 contentRect: NSRect(
-                    x: origin.x + 24,
-                    y: origin.y + 24,
+                    x: -100_000,
+                    y: -100_000,
                     width: 1280,
                     height: 720
                 ),
@@ -106,14 +112,10 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            window.alphaValue = 0.01
+            window.alphaValue = 1
             window.ignoresMouseEvents = true
             window.contentView = webView
-            if let parentWindow {
-                window.order(.below, relativeTo: parentWindow.windowNumber)
-            } else {
-                window.orderBack(nil)
-            }
+            window.orderBack(nil)
 
             self.webView = webView
             renderWindow = window
@@ -138,8 +140,9 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === activeNavigation,
-              let renderID = activeRenderID,
-              isActive(renderID, in: webView) else {
+            let renderID = activeRenderID,
+            isActive(renderID, in: webView)
+        else {
             return
         }
         waitUntilReady(attempt: 0, renderID: renderID)
@@ -178,8 +181,9 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
         in webView: WKWebView
     ) {
         guard navigation === activeNavigation,
-              let renderID,
-              isActive(renderID, in: webView) else {
+            let renderID,
+            isActive(renderID, in: webView)
+        else {
             return
         }
         complete(
@@ -198,16 +202,35 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
             return
         }
         webView.evaluateJavaScript(
-            "Boolean(window.__presentationPrintReady)"
+            """
+            JSON.stringify({
+              ready: Boolean(window.__presentationPrintReady),
+              error: window.__presentationPrintState?.error || ""
+            })
+            """
         ) { [weak self] result, error in
             guard let self,
-                  let webView = self.webView,
-                  self.isActive(renderID, in: webView) else {
+                let webView = self.webView,
+                self.isActive(renderID, in: webView)
+            else {
                 return
             }
-            if error == nil, result as? Bool == true {
-                self.prepareRenderedContent(renderID: renderID)
-                return
+            if error == nil,
+                let stateJSON = result as? String,
+                let data = stateJSON.data(using: .utf8),
+                let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            {
+                if let details = state["error"] as? String, !details.isEmpty {
+                    self.complete(
+                        .failure(RenderError.pageCreationFailed(details)),
+                        renderID: renderID
+                    )
+                    return
+                }
+                if state["ready"] as? Bool == true {
+                    self.beginPDFCapture(renderID: renderID)
+                    return
+                }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.waitUntilReady(
@@ -221,22 +244,24 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
     private func diagnoseTimeout(renderID: UUID) {
         guard let webView, isActive(renderID, in: webView) else { return }
         let script = """
-        JSON.stringify({
-          ready: Boolean(window.__presentationPrintReady),
-          printError: document.documentElement.getAttribute("data-print-error"),
-          moduleLoaded: typeof window.marked !== "undefined",
-          bodyClass: document.body?.className || "",
-          title: document.title || "",
-          fontsStatus: document.fonts?.status || "",
-          slideCount: document.querySelectorAll("#stage > .deck").length,
-          imageCount: document.querySelectorAll("#stage img, #stage image").length,
-          mermaidCount: document.querySelectorAll("#stage .mermaid").length
-        })
-        """
+            JSON.stringify({
+              ready: Boolean(window.__presentationPrintReady),
+              printError: document.documentElement.getAttribute("data-print-error"),
+              moduleLoaded: typeof window.marked !== "undefined",
+              bodyClass: document.body?.className || "",
+              title: document.title || "",
+              fontsStatus: document.fonts?.status || "",
+              slideCount: document.querySelectorAll("#stage > .deck").length,
+              printState: window.__presentationPrintState || null,
+              imageCount: document.querySelectorAll("#stage img, #stage image").length,
+              mermaidCount: document.querySelectorAll("#stage .mermaid").length
+            })
+            """
         webView.evaluateJavaScript(script) { [weak self] result, _ in
             guard let self,
-                  let webView = self.webView,
-                  self.isActive(renderID, in: webView) else {
+                let webView = self.webView,
+                self.isActive(renderID, in: webView)
+            else {
                 return
             }
             let details = result as? String ?? "page state unavailable"
@@ -247,84 +272,29 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func prepareRenderedContent(renderID: UUID) {
+    private func beginPDFCapture(renderID: UUID) {
         guard let webView, isActive(renderID, in: webView) else { return }
-        // Resolve Mermaid's cqh max-height against each fixed slide before capture.
-        let script = """
-        document.querySelectorAll("#stage .mermaid svg").forEach(svg => {
-          const rect = svg.getBoundingClientRect();
-          const slideRect = svg.closest(".deck")?.getBoundingClientRect();
-          if (rect.height === 0 && slideRect?.height > 0) {
-            svg.style.setProperty("max-height", `${slideRect.height * 0.44}px`, "important");
-          }
-        });
-        """
-        webView.evaluateJavaScript(script) { [weak self] _, error in
+        webView.evaluateJavaScript("window.__presentationPrintState") { [weak self] result, error in
             guard let self,
-                  let webView = self.webView,
-                  self.isActive(renderID, in: webView) else {
-                return
-            }
-            guard error == nil else {
-                self.complete(
-                    .failure(RenderError.measurementFailed),
-                    renderID: renderID
-                )
-                return
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                self?.measureSlides(renderID: renderID)
-            }
-        }
-    }
-
-    private func measureSlides(renderID: UUID) {
-        guard let webView, isActive(renderID, in: webView) else { return }
-        let script = """
-        [...document.querySelectorAll("#stage > .deck")].map(slide => {
-          const rect = slide.getBoundingClientRect();
-          return {
-            x: rect.left + window.scrollX,
-            y: rect.top + window.scrollY,
-            width: rect.width,
-            height: rect.height
-          };
-        })
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            guard let self,
-                  let webView = self.webView,
-                  self.isActive(renderID, in: webView) else {
+                let webView = self.webView,
+                self.isActive(renderID, in: webView)
+            else {
                 return
             }
             guard error == nil,
-                  let values = result as? [[String: Any]] else {
+                let state = result as? [String: Any],
+                state["ready"] as? Bool == true,
+                let slideCount = state["slideCount"] as? Int,
+                slideCount > 0
+            else {
                 self.complete(
-                    .failure(RenderError.measurementFailed),
-                    renderID: renderID
-                )
-                return
-            }
-            let rects = values.compactMap { value -> CGRect? in
-                guard let x = value["x"] as? Double,
-                      let y = value["y"] as? Double,
-                      let width = value["width"] as? Double,
-                      let height = value["height"] as? Double,
-                      width > 0,
-                      height > 0 else {
-                    return nil
-                }
-                return CGRect(x: x, y: y, width: width, height: height)
-            }
-            guard rects.count == values.count, !rects.isEmpty else {
-                self.complete(
-                    .failure(RenderError.noPrintableSlides),
+                    .failure(RenderError.invalidRenderState),
                     renderID: renderID
                 )
                 return
             }
             self.createPDFPage(
-                rects: rects,
+                slideCount: slideCount,
                 index: 0,
                 output: PDFDocument(),
                 renderID: renderID
@@ -332,66 +302,43 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func createPDFPage(
-        rects: [CGRect],
-        index: Int,
-        output: PDFDocument,
-        renderID: UUID
+    private func renderPrintSlide(
+        at index: Int,
+        renderID: UUID,
+        completion: @escaping @MainActor () -> Void
     ) {
         guard let webView, isActive(renderID, in: webView) else { return }
-        guard index < rects.count else {
-            guard output.pageCount == rects.count else {
-                complete(
-                    .failure(
-                        RenderError.pageCreationFailed(
-                            "WebKit returned the wrong number of PDF pages."
-                        )
-                    ),
-                    renderID: renderID
-                )
-                return
-            }
-            guard let data = output.dataRepresentation(),
-                  let detachedDocument = PDFDocument(data: data) else {
-                complete(
-                    .failure(
-                        RenderError.pageCreationFailed(
-                            "WebKit returned an empty PDF."
-                        )
-                    ),
-                    renderID: renderID
-                )
-                return
-            }
-            complete(.success(detachedDocument), renderID: renderID)
-            return
-        }
-
-        let configuration = WKPDFConfiguration()
-        configuration.rect = rects[index]
-        webView.createPDF(configuration: configuration) { [weak self] result in
+        scheduleStepTimeout(
+            "The renderer did not finish slide \(index + 1).",
+            renderID: renderID
+        )
+        webView.callAsyncJavaScript(
+            "return await window.__presentationRenderPrintSlide(index);",
+            arguments: ["index": index],
+            in: nil,
+            in: .page
+        ) { [weak self] result in
             Task { @MainActor [weak self] in
                 guard let self,
-                      let webView = self.webView,
-                      self.isActive(renderID, in: webView) else {
+                    let webView = self.webView,
+                    self.isActive(renderID, in: webView)
+                else {
                     return
                 }
+                self.cancelStepTimeout()
                 do {
-                    let data = try result.get()
-                    guard let pageDocument = PDFDocument(data: data),
-                          pageDocument.pageCount == 1,
-                          let page = pageDocument.page(at: 0)?.copy() as? PDFPage else {
-                        throw RenderError.pageCreationFailed(
-                            "WebKit returned an invalid PDF page."
-                        )
+                    let response = try result.get() as? [String: Any]
+                    guard let response,
+                        response["ok"] as? Bool == true,
+                        response["ready"] as? Bool == true,
+                        response["index"] as? Int == index
+                    else {
+                        let details =
+                            response?["error"] as? String
+                            ?? "The renderer did not confirm the requested slide."
+                        throw RenderError.pageCreationFailed(details)
                     }
-                    output.insert(page, at: output.pageCount)
-                    self.createPDFPage(
-                        rects: rects,
-                        index: index + 1,
-                        output: output,
-                        renderID: renderID
-                    )
+                    completion()
                 } catch let error as RenderError {
                     self.complete(.failure(error), renderID: renderID)
                 } catch {
@@ -408,10 +355,249 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
         }
     }
 
+    private func finishDocument(
+        _ output: PDFDocument,
+        expectedPageCount: Int,
+        renderID: UUID
+    ) {
+        guard output.pageCount == expectedPageCount else {
+            complete(
+                .failure(
+                    RenderError.pageCreationFailed(
+                        "WebKit returned the wrong number of PDF pages."
+                    )
+                ),
+                renderID: renderID
+            )
+            return
+        }
+        guard let data = output.dataRepresentation(),
+            let detachedDocument = PDFDocument(data: data)
+        else {
+            complete(
+                .failure(
+                    RenderError.pageCreationFailed(
+                        "WebKit returned an empty PDF."
+                    )
+                ),
+                renderID: renderID
+            )
+            return
+        }
+        complete(.success(detachedDocument), renderID: renderID)
+    }
+
+    private func createPDFPage(
+        slideCount: Int,
+        index: Int,
+        output: PDFDocument,
+        renderID: UUID
+    ) {
+        guard let webView, isActive(renderID, in: webView) else { return }
+        guard index < slideCount else {
+            finishDocument(
+                output,
+                expectedPageCount: slideCount,
+                renderID: renderID
+            )
+            return
+        }
+
+        webView.evaluateJavaScript(
+            "JSON.stringify(window.__presentationPrintState?.diagnostics || null)"
+        ) { [weak self] value, inspectionError in
+            guard let self,
+                let webView = self.webView,
+                self.isActive(renderID, in: webView)
+            else {
+                return
+            }
+            guard inspectionError == nil,
+                let diagnostics = value as? String,
+                diagnostics != "null"
+            else {
+                self.complete(
+                    .failure(RenderError.invalidRenderState),
+                    renderID: renderID
+                )
+                return
+            }
+            self.capturePDFPage(
+                slideCount: slideCount,
+                index: index,
+                output: output,
+                diagnostics: diagnostics,
+                renderID: renderID
+            )
+        }
+    }
+
+    private func capturePDFPage(
+        slideCount: Int,
+        index: Int,
+        output: PDFDocument,
+        diagnostics: String,
+        renderID: UUID
+    ) {
+        guard let webView, isActive(renderID, in: webView) else { return }
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(x: 0, y: 0, width: 1_280, height: 720)
+        configuration.snapshotWidth = 2_560
+        scheduleStepTimeout(
+            "WebKit did not capture slide \(index + 1).",
+            renderID: renderID
+        )
+        webView.takeSnapshot(with: configuration) { [weak self] image, error in
+            guard let self,
+                let webView = self.webView,
+                self.isActive(renderID, in: webView)
+            else {
+                return
+            }
+            self.cancelStepTimeout()
+            do {
+                if let error {
+                    throw error
+                }
+                guard let image,
+                    image.isValid,
+                    self.snapshotContainsExpectedContent(image, diagnostics: diagnostics)
+                else {
+                    throw RenderError.pageCreationFailed(
+                        "WebKit returned an invalid slide snapshot."
+                    )
+                }
+                image.size = NSSize(width: 1_280, height: 720)
+                guard let page = PDFPage(image: image) else {
+                    throw RenderError.pageCreationFailed(
+                        "Could not create a PDF page from the slide snapshot."
+                    )
+                }
+                page.setBounds(
+                    CGRect(x: 0, y: 0, width: 1_280, height: 720),
+                    for: .mediaBox
+                )
+                self.onDiagnostics?(index, diagnostics)
+                output.insert(page, at: output.pageCount)
+                let nextIndex = index + 1
+                guard nextIndex < slideCount else {
+                    self.finishDocument(
+                        output,
+                        expectedPageCount: slideCount,
+                        renderID: renderID
+                    )
+                    return
+                }
+                self.renderPrintSlide(at: nextIndex, renderID: renderID) {
+                    self.createPDFPage(
+                        slideCount: slideCount,
+                        index: nextIndex,
+                        output: output,
+                        renderID: renderID
+                    )
+                }
+            } catch let error as RenderError {
+                self.complete(.failure(error), renderID: renderID)
+            } catch {
+                self.complete(
+                    .failure(
+                        RenderError.pageCreationFailed(
+                            error.localizedDescription
+                        )
+                    ),
+                    renderID: renderID
+                )
+            }
+        }
+    }
+
     private func isActive(_ renderID: UUID, in webView: WKWebView) -> Bool {
         activeRenderID == renderID
             && completion != nil
             && self.webView === webView
+    }
+
+    private func scheduleStepTimeout(_ details: String, renderID: UUID) {
+        cancelStepTimeout()
+        let generation = UUID()
+        stepTimeoutGeneration = generation
+        let item = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self,
+                    self.stepTimeoutGeneration == generation,
+                    let webView = self.webView,
+                    self.isActive(renderID, in: webView)
+                else {
+                    return
+                }
+                self.complete(
+                    .failure(RenderError.timedOut(details)),
+                    renderID: renderID
+                )
+            }
+        }
+        stepTimeout = item
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.stepTimeoutSeconds,
+            execute: item
+        )
+    }
+
+    private func cancelStepTimeout() {
+        stepTimeoutGeneration = nil
+        stepTimeout?.cancel()
+        stepTimeout = nil
+    }
+
+    private func snapshotContainsExpectedContent(
+        _ image: NSImage,
+        diagnostics: String
+    ) -> Bool {
+        var proposedRect = NSRect(origin: .zero, size: image.size)
+        guard
+            let cgImage = image.cgImage(
+                forProposedRect: &proposedRect,
+                context: nil,
+                hints: nil
+            ),
+            cgImage.width >= 1_280,
+            cgImage.height >= 720,
+            abs(Double(cgImage.width) / Double(cgImage.height) - 16.0 / 9.0) < 0.001,
+            let diagnosticsData = diagnostics.data(using: .utf8),
+            let values = try? JSONSerialization.jsonObject(
+                with: diagnosticsData
+            ) as? [String: Any]
+        else {
+            return false
+        }
+
+        let expectsVisibleContent =
+            (values["textLength"] as? Int ?? 0) > 0
+            || !(values["images"] as? [Any] ?? []).isEmpty
+            || !(values["diagrams"] as? [Any] ?? []).isEmpty
+        guard expectsVisibleContent else { return true }
+        guard let data = cgImage.dataProvider?.data,
+            let bytes = CFDataGetBytePtr(data)
+        else {
+            return false
+        }
+
+        let bytesPerPixel = max(cgImage.bitsPerPixel / 8, 1)
+        let sampleStepX = max(cgImage.width / 64, 1)
+        let sampleStepY = max(cgImage.height / 36, 1)
+        var minimum = 255
+        var maximum = 0
+        for y in stride(from: 0, to: cgImage.height, by: sampleStepY) {
+            for x in stride(from: 0, to: cgImage.width, by: sampleStepX) {
+                let offset = y * cgImage.bytesPerRow + x * bytesPerPixel
+                for channel in 0..<min(bytesPerPixel, 3) {
+                    let value = Int(bytes[offset + channel])
+                    minimum = min(minimum, value)
+                    maximum = max(maximum, value)
+                }
+            }
+        }
+        return maximum - minimum >= 8
     }
 
     private func complete(
@@ -419,6 +605,7 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
         renderID: UUID
     ) {
         guard activeRenderID == renderID, let completion else { return }
+        cancelStepTimeout()
         self.completion = nil
         activeRenderID = nil
         activeNavigation = nil
@@ -426,6 +613,7 @@ final class DeckPDFRenderer: NSObject, WKNavigationDelegate {
     }
 
     private func cleanup() {
+        cancelStepTimeout()
         guard let webView, let renderWindow else {
             self.webView = nil
             self.renderWindow = nil

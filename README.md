@@ -25,10 +25,14 @@
 - GFM, highlighted code, Mermaid, Architecture DSL, local images, speaker notes, and custom themes
 - Built-in `dark`, `light`, and `microsoft` themes from the original renderer
 - Local-only tokenized renderer server with CSP, same-origin checks, and canonical asset boundaries
-- PDF export through WebKit's native PDF pipeline
+- WYSIWYG PDF export from the same fixed 1280 × 720 WebKit canvas used on screen
 - No telemetry and no runtime network dependency
 
 Architecture DSL **rendering** is supported. The Windows Architecture editor and Surface Pen bridge are not available on macOS.
+
+Current, next, audience, thumbnail, and PDF output all use the same fixed slide layout. PDF pages embed high-resolution snapshots of that canonical canvas so gradients, local images, Mermaid, and Architecture diagrams do not change between display and export.
+
+This fidelity-first export produces raster PDF pages: text is not selectable or searchable, and files are larger than vector PDFs.
 
 ## Install
 
@@ -99,6 +103,7 @@ make run
 make run-cli MARKDSTAGE_TARGET=/path/to/deck.md
 make launch-check
 make cli-launch-check
+make pdf-export-check
 make release VERSION=0.1.0
 make dmg VERSION=0.1.0
 make generate

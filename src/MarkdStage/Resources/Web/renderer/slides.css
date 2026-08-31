@@ -26,9 +26,6 @@
       rgba(122,92,255,.68) 34%,rgba(14,17,23,0) 72%),
     linear-gradient(160deg,#101827 0%,#0e1117 62%);
   --backcover-bg:linear-gradient(135deg,#1d2b52 0%,#2a1f52 100%);
-  --print-slide-bg:#0e1117;
-  --print-cover-bg:linear-gradient(160deg,#11203a 0%,#0e1117 60%);
-  --print-section-bg:var(--section-bg);
 }:root[data-theme="light"],
 .deck[data-theme="light"]{
   --bg:#ffffff; --fg:#15181f; --muted:#5b6470; --body:#333a44;
@@ -53,9 +50,6 @@
       rgba(79,70,229,.84) 31%,rgba(124,58,237,.42) 48%,rgba(255,255,255,0) 72%),
     linear-gradient(160deg,#fff 0%,#f7f7fa 72%);
   --backcover-bg:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);
-  --print-slide-bg:#ffffff;
-  --print-cover-bg:linear-gradient(160deg,#e0e7ff 0%,#eef2ff 45%,#ffffff 100%);
-  --print-section-bg:var(--section-bg);
 }
 :root[data-theme="microsoft"],
 .deck[data-theme="microsoft"]{
@@ -83,9 +77,6 @@
       rgba(47,98,205,.82) 31%,rgba(115,74,200,.4) 49%,rgba(255,255,255,0) 72%),
     linear-gradient(160deg,#fff 0%,#f5f5f5 72%);
   --backcover-bg:#0078d4;
-  --print-slide-bg:#ffffff;
-  --print-cover-bg:linear-gradient(160deg,#a7d4f5 0%,#b7dcf7 55%,#d1e9fa 100%);
-  --print-section-bg:var(--section-bg);
 }
 *{box-sizing:border-box}
 /* The canvas viewport itself never scrolls: a slide always fills exactly one
@@ -94,6 +85,14 @@
    scrollbars from appearing on slides that actually fit. */
 html,body{height:100%;margin:0;overflow:hidden}
 #stage{height:100%;container-type:size}
+#renderStage{
+  position:fixed;left:-100000px;top:0;width:1280px;height:720px;
+  container-type:size;overflow:hidden;pointer-events:none;visibility:hidden;
+}
+body.canonical-mode #stage{
+  position:absolute;width:1280px;height:720px;
+  transform-origin:top left;
+}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
          clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 body{
@@ -104,6 +103,7 @@ body{
     var(--bg);
   color:var(--fg);
 }
+body.canonical-mode{background:#000;}
 body.markdstage-empty{
   --bg:#0b1020;--fg:#f7f4ed;--muted:#aab2c5;--body:#d7dbe5;
   --accent:#ffb547;--accent-strong:#ffd77a;--accent-soft:rgba(255,181,71,.14);
@@ -111,6 +111,11 @@ body.markdstage-empty{
   --glow-1:rgba(255,181,71,.08);--glow-2:rgba(255,215,122,.04);
 }
 .deck{position:relative;height:100%;width:100%;display:flex;flex-direction:column;
+      container-type:size;
+      background:
+        radial-gradient(1100px 720px at 88% -12%,var(--glow-1) 0%,transparent 60%),
+        radial-gradient(900px 620px at -10% 112%,var(--glow-2) 0%,transparent 55%),
+        var(--bg);
       --deck-pad-y:clamp(30px,5.5cqh,68px); --deck-pad-x:clamp(40px,6.5cqw,104px);
       --slide-h1-size:clamp(32px,6.6cqh,72px);
       --slide-h2-size:clamp(25px,5cqh,50px);
@@ -131,7 +136,7 @@ body.markdstage-empty{
       --slide-h3-size:clamp(26px,4.6cqh,44px);
       --slide-body-size:clamp(24px,3.9cqh,40px);
       --slide-code-size:clamp(18px,2.65cqh,28px);}
-.deck::before{content:"";position:fixed;top:0;left:0;right:0;height:6px;z-index:2;
+.deck::before{content:"";position:absolute;top:0;left:0;right:0;height:6px;z-index:2;
   background:var(--topbar);}
 @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.deck{animation:none}}
@@ -209,11 +214,15 @@ th,td{border:1px solid var(--border);padding:.55em .8em;text-align:left;}
 th{background:var(--accent-soft);color:var(--accent-strong);font-weight:600;}
 img{max-width:100%;max-height:48cqh;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);}
 .body img{display:block;margin:.4em auto;}
+.asset-error{display:flex;align-items:center;justify-content:center;min-height:5em;
+     margin:.4em 0;padding:1em;border:1px dashed #d13438;border-radius:8px;
+     color:#d13438;background:color-mix(in srgb,#d13438 8%,var(--surface));
+     font-size:.78em;text-align:center;overflow-wrap:anywhere;}
 pre.mermaid{background:none;border:0;border-left:0;border-radius:0;box-shadow:none;
     padding:0;margin:.4em 0;font-family:inherit;font-size:inherit;line-height:1.3;
     text-align:center;overflow:auto;}
 pre.mermaid svg{max-width:100%;height:auto;max-height:44cqh;}
-body.mermaid-loading .mermaid{visibility:hidden;}
+body.mermaid-loading #renderStage .mermaid{visibility:hidden;}
 .architecture-diagram{width:100%;min-height:0;margin:.35em 0;display:flex;
      align-items:center;justify-content:center;}
 .architecture-svg{display:block;width:100%;height:auto;max-height:56cqh;
@@ -406,9 +415,7 @@ body.presenter-mode #navExport{display:none;}
 body.presenter-mode #navImport{display:none;}
 body.presenter-mode #navSourceMode{display:none;}
 body.preview-mode .nav,body.preview-mode .overview{display:none!important;}
-body.preview-mode #stage{
-  position:absolute;width:1280px;height:720px;transform-origin:top left;
-}
+
 /* When no deck is loaded, leave only the load button as the available action. */
 .nav.nav-empty > :not(#navImport){display:none;}
 body.markdstage-empty .nav{
@@ -528,40 +535,22 @@ body.presenter-view-mode #stage,body.presenter-view-mode #nav{display:none;}
 @page{size:13.333333in 7.5in;margin:0;}
 /* WKWebView.createPDF uses screen media, so print-mode itself owns every export
    override instead of relying on @media print. */
-  html.print-mode,body.print-mode{width:13.333333in;height:auto;overflow:visible;}
+  html.print-mode,body.print-mode{
+    width:1280px;height:720px;overflow:hidden;
+  }
   body.print-mode{
-    overflow:visible;background:none;
+    background:none;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;
   }
 
-  body.print-mode #stage{display:block;width:13.333333in;height:auto;}
+  body.print-mode #stage{
+    display:block;position:static;width:1280px;height:720px;
+    transform:none!important;
+  }
   body.print-mode .deck{
-    width:13.333333in;height:7.5in;min-height:7.5in;max-height:7.5in;
-    --deck-pad-y:40px;--deck-pad-x:84px;
-    --slide-h1-size:48px;--slide-h2-size:36px;--slide-h3-size:24px;
-    --slide-body-size:22px;--slide-code-size:15px;
-    overflow:hidden;animation:none;break-after:page;page-break-after:always;
+    width:1280px;height:720px;min-height:720px;max-height:720px;
+    overflow:hidden;animation:none;
   }
-  body.print-mode .deck.size-large{
-    --slide-h1-size:53px;--slide-h2-size:42px;--slide-h3-size:29px;
-    --slide-body-size:25px;--slide-code-size:17px;
-  }
-  body.print-mode .deck.size-xlarge{
-    --slide-h1-size:60px;--slide-h2-size:48px;--slide-h3-size:33px;
-    --slide-body-size:28px;--slide-code-size:19px;
-  }
-  body.print-mode .deck:not(.title-slide):not(.section-slide):not(.backcover-slide){
-    background:var(--print-slide-bg,var(--bg));
-  }
-  body.print-mode .deck.title-slide{background:var(--print-cover-bg,var(--cover-bg));}
-  body.print-mode .deck.section-slide{
-    background:var(--print-section-bg,var(--section-bg,var(--bg)));
-  }
-  body.print-mode .deck.backcover-slide{background:var(--backcover-bg,var(--accent));}
-  body.print-mode .deck:last-child{break-after:auto;page-break-after:auto;}
-  body.print-mode .deck::before{position:absolute;}
-  body.print-mode .body{overflow:hidden;}
-  body.print-mode .architecture-svg{max-height:5.25in;}
   body.print-mode .architecture-editor-toolbar{display:none!important;}
   /* Mermaid appends a tooltip host to <body> on render. It sits just past the
      720px page boundary and forces an extra blank page in the exported PDF. */

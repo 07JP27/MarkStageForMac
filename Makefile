@@ -40,7 +40,7 @@ cli-launch-check: build
 	sh scripts/cli-launch-smoke-test.sh "$(DEBUG_APP)" "$(CLI_CHECK_TARGET)"
 
 pdf-export-check: build
-	sh scripts/pdf-export-smoke-test.sh "$(DEBUG_APP)"
+	sh scripts/renderer-parity-smoke-test.sh "$(DEBUG_APP)"
 
 release: generate
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -destination '$(DESTINATION)' -derivedDataPath $(DERIVED_DATA) MARKETING_VERSION="$(VERSION)" build

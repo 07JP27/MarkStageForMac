@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+
 @testable import MarkdStage
 
 final class PresentationServerTests: XCTestCase {
@@ -10,7 +11,8 @@ final class PresentationServerTests: XCTestCase {
         let session = PresentationSession()
         let sourceURL = webRoot.deletingLastPathComponent().appendingPathComponent("deck.md")
         try "# First\n\n---\n\n# Second".write(to: sourceURL, atomically: true, encoding: .utf8)
-        let document = MarkdownDeckParser().parse(try String(contentsOf: sourceURL, encoding: .utf8))
+        let document = MarkdownDeckParser().parse(
+            try String(contentsOf: sourceURL, encoding: .utf8))
         _ = session.load(
             document,
             sourceURL: sourceURL,
@@ -39,7 +41,7 @@ final class PresentationServerTests: XCTestCase {
             "version", "deckVersion", "markdown", "index", "total", "theme",
             "themeLocked", "customThemeCss", "customThemeMeta", "mode",
             "sourceBacked", "sourceMode", "sourceWatchStatus", "sourceWatchError",
-            "presenterRunning", "architectureEdit", "architectureDetailedEdit"
+            "presenterRunning", "architectureEdit", "architectureDetailedEdit",
         ]
         XCTAssertTrue(requiredKeys.isSubset(of: Set(state.keys)))
         XCTAssertEqual(state["index"] as? Int, 0)
@@ -94,6 +96,78 @@ final class PresentationServerTests: XCTestCase {
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 404)
     }
 
+    func testExportAssetsRemainBoundToTheStartingSnapshot() async throws {
+        let webRoot = try makeWebRoot()
+        let root = webRoot.deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = try makeAssetDeck(named: "first", contents: "deck-a", in: root)
+        let second = try makeAssetDeck(named: "second", contents: "deck-b", in: root)
+        let session = PresentationSession()
+        _ = session.load(
+            DeckDocument(slides: ["# First"], metadata: [:], theme: "custom", themeFile: ""),
+            sourceURL: first.sourceURL,
+            workspaceRoot: first.workspaceRoot,
+            theme: ThemeState(name: "custom", assetRoot: first.themeRoot)
+        )
+
+        let server = try PresentationServer(session: session, webRoot: webRoot)
+        try server.start()
+        defer { server.stop() }
+        let baseURL = try XCTUnwrap(server.baseURL)
+        let exportToken = UUID().uuidString
+        let (_, exportResponse) = try await URLSession.shared.data(
+            from: try URL(
+                baseURL: baseURL,
+                path: "export-data",
+                query: ["token": exportToken]
+            )
+        )
+        XCTAssertEqual((exportResponse as? HTTPURLResponse)?.statusCode, 200)
+        var keepAlive = URLRequest(
+            url: try URL(
+                baseURL: baseURL,
+                path: "export-status",
+                query: ["token": exportToken]
+            )
+        )
+        keepAlive.httpMethod = "POST"
+        let (_, keepAliveResponse) = try await URLSession.shared.data(for: keepAlive)
+        XCTAssertEqual((keepAliveResponse as? HTTPURLResponse)?.statusCode, 200)
+
+        _ = session.load(
+            DeckDocument(slides: ["# Second"], metadata: [:], theme: "custom", themeFile: ""),
+            sourceURL: second.sourceURL,
+            workspaceRoot: second.workspaceRoot,
+            theme: ThemeState(name: "custom", assetRoot: second.themeRoot)
+        )
+
+        let (exportDeckAsset, _) = try await URLSession.shared.data(
+            from: try URL(
+                baseURL: baseURL,
+                path: "assets/shared.svg",
+                query: ["exportToken": exportToken]
+            )
+        )
+        let (currentDeckAsset, _) = try await URLSession.shared.data(
+            from: baseURL.appendingPathComponent("assets/shared.svg")
+        )
+        let (exportThemeAsset, _) = try await URLSession.shared.data(
+            from: try URL(
+                baseURL: baseURL,
+                path: "theme-assets/logo.svg",
+                query: ["exportToken": exportToken]
+            )
+        )
+        let (currentThemeAsset, _) = try await URLSession.shared.data(
+            from: baseURL.appendingPathComponent("theme-assets/logo.svg")
+        )
+
+        XCTAssertEqual(String(decoding: exportDeckAsset, as: UTF8.self), "deck-a")
+        XCTAssertEqual(String(decoding: currentDeckAsset, as: UTF8.self), "deck-b")
+        XCTAssertEqual(String(decoding: exportThemeAsset, as: UTF8.self), "theme-first")
+        XCTAssertEqual(String(decoding: currentThemeAsset, as: UTF8.self), "theme-second")
+    }
+
     private func makeWebRoot() throws -> URL {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("MarkdStageServerTests-\(UUID().uuidString)", isDirectory: true)
@@ -112,5 +186,56 @@ final class PresentationServerTests: XCTestCase {
             encoding: .utf8
         )
         return webRoot
+    }
+
+    private func makeAssetDeck(
+        named name: String,
+        contents: String,
+        in root: URL
+    ) throws -> (sourceURL: URL, workspaceRoot: URL, themeRoot: URL) {
+        let workspaceRoot = root.appendingPathComponent(name, isDirectory: true)
+        let assets = workspaceRoot.appendingPathComponent("assets", isDirectory: true)
+        let themeRoot = workspaceRoot.appendingPathComponent("theme", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: assets,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: themeRoot,
+            withIntermediateDirectories: true
+        )
+        try contents.write(
+            to: assets.appendingPathComponent("shared.svg"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "theme-\(name)".write(
+            to: themeRoot.appendingPathComponent("logo.svg"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let sourceURL = workspaceRoot.appendingPathComponent("deck.md")
+        try "# \(name)".write(to: sourceURL, atomically: true, encoding: .utf8)
+        return (sourceURL, workspaceRoot, themeRoot)
+    }
+}
+
+extension URL {
+    fileprivate init(baseURL: URL, path: String, query: [String: String]) throws {
+        guard
+            var components = URLComponents(
+                url: baseURL.appendingPathComponent(path),
+                resolvingAgainstBaseURL: false
+            )
+        else {
+            throw CocoaError(.fileReadInvalidFileName)
+        }
+        components.queryItems = query.map {
+            URLQueryItem(name: $0.key, value: $0.value)
+        }
+        guard let url = components.url else {
+            throw CocoaError(.fileReadInvalidFileName)
+        }
+        self = url
     }
 }

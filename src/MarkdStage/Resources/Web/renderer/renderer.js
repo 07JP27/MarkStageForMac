@@ -61,10 +61,52 @@ function localAssetUrl(path, documentRef = document) {
   try {
     const base = new URL(documentRef.baseURI);
     if (base.protocol === "http:" || base.protocol === "https:") {
-      return new URL(normalized, base).pathname;
+      const assetURL = new URL(normalized, base);
+      const exportToken = documentRef.documentElement?.dataset.exportToken || "";
+      if (exportToken) assetURL.searchParams.set("exportToken", exportToken);
+      return `${assetURL.pathname}${assetURL.search}${assetURL.hash}`;
     }
   } catch (_) {}
   return `/${normalized}`;
+}
+
+function mappedLocalAssetSource(source) {
+  const normalized = String(source || "").replace(/^(?:\.?\/)+/, "");
+  if (normalized.startsWith("assets/") || normalized.startsWith("theme-assets/")) {
+    return localAssetUrl(normalized);
+  }
+  return source;
+}
+
+function mappedLocalSourceSet(sourceSet) {
+  return String(sourceSet || "").replace(
+    /(^\s*|,\s*)((?:(?:\.\/)|\/)*(?:assets|theme-assets)\/[^\s,]+)(?=\s|,|$)/g,
+    (_, separator, source) => `${separator}${mappedLocalAssetSource(source)}`,
+  );
+}
+
+function rewriteLocalAssetImages(scope) {
+  scope.querySelectorAll("img[src]").forEach((image) => {
+    image.setAttribute("src", mappedLocalAssetSource(image.getAttribute("src") || ""));
+  });
+  scope.querySelectorAll("img[srcset], source[srcset]").forEach((source) => {
+    source.setAttribute(
+      "srcset",
+      mappedLocalSourceSet(source.getAttribute("srcset") || ""),
+    );
+  });
+}
+
+function rewriteLocalSvgAssetImages(scope) {
+  scope.querySelectorAll("svg image").forEach((image) => {
+    const source = image.getAttribute("href") || image.getAttribute("xlink:href") || "";
+    const mapped = mappedLocalAssetSource(source);
+    if (mapped === source) return;
+    image.setAttribute("href", mapped);
+    if (image.hasAttribute("xlink:href")) {
+      image.setAttribute("xlink:href", mapped);
+    }
+  });
 }
 
 // --- themes ----------------------------------------------------------------
@@ -78,6 +120,8 @@ const MERMAID_THEME = {
 };
 const SIZE_MODES = new Set(["auto", "normal", "large", "xlarge"]);
 const DEFAULT_SIZE_MODE = "auto";
+const CANONICAL_WIDTH = 1280;
+const CANONICAL_HEIGHT = 720;
 let deckTheme = DEFAULT_THEME;
 let deckThemeLocked = false;
 let customThemeCss = "";
@@ -102,6 +146,8 @@ let architectureEditors = [];
 // included); `autoSize` says whether it also takes part in the font auto-fit.
 let layoutTarget = null;
 let layoutFrame = 0;
+let renderQueue = Promise.resolve();
+let printContext = null;
 // Overflow below this many pixels is treated as "it fits". Fractional line
 // heights and display scaling routinely push scrollHeight a fraction of a pixel
 // past clientHeight, which is invisible but still enough for `overflow:auto` to
@@ -128,7 +174,7 @@ function themeImage(entry, className, { decorative = false } = {}) {
   if (!entry?.image) return null;
   const image = document.createElement("img");
   image.className = className;
-  image.src = entry.image;
+  image.src = localAssetUrl(entry.image);
   image.alt = decorative ? "" : entry.alt || "";
   if (decorative) image.setAttribute("aria-hidden", "true");
   return image;
@@ -362,7 +408,12 @@ function moveLeadingSlideTitle(header, bodyEl, specialLayout) {
   return title;
 }
 
-function createSlide(markdown, fallbackTheme, themeLocked = deckThemeLocked) {
+function createSlide(
+  markdown,
+  fallbackTheme,
+  themeLocked = deckThemeLocked,
+  suppliedThemeMetadata = customThemeMeta,
+) {
   const placeholder = !nonEmpty(markdown);
   const md = placeholder ? PLACEHOLDER : markdown;
   const { meta, body: rawBody } = splitFrontMatter(md);
@@ -383,7 +434,7 @@ function createSlide(markdown, fallbackTheme, themeLocked = deckThemeLocked) {
   // A slide-level `theme:` overrides the deck theme. Keep it on the deck element
   // as well as <html> so print mode can render differently themed pages together.
   const theme = normalizeTheme(themeLocked ? fallbackTheme : meta.theme || fallbackTheme);
-  const themeMetadata = theme === "custom" ? customThemeMeta : null;
+  const themeMetadata = theme === "custom" ? suppliedThemeMetadata : null;
 
   const deck = document.createElement("div");
   deck.className = "deck";
@@ -436,9 +487,7 @@ function createSlide(markdown, fallbackTheme, themeLocked = deckThemeLocked) {
   // event handlers, javascript: URLs) while keeping safe formatting such as the
   // <br> tags the title slide relies on.
   bodyEl.innerHTML = window.DOMPurify.sanitize(window.marked.parse(body));
-  bodyEl.querySelectorAll('img[src^="/assets/"]').forEach((image) => {
-    image.setAttribute("src", localAssetUrl(image.getAttribute("src")));
-  });
+  rewriteLocalAssetImages(bodyEl);
   applyEmojiShortcodes(bodyEl);
   const slideTitle = moveLeadingSlideTitle(
     header,
@@ -535,52 +584,6 @@ function createSlide(markdown, fallbackTheme, themeLocked = deckThemeLocked) {
   };
 }
 
-function renderSlide(markdown) {
-  lastMarkdown = typeof markdown === "string" ? markdown : "";
-  document.body.classList.toggle("markdstage-empty", !nonEmpty(markdown));
-  // Always detach the previous slide's editing UI because it owns document listeners.
-  architectureEditors.forEach((editor) => editor.destroy());
-  architectureEditors = [];
-  applyCustomThemeCss(customThemeCss);
-  const slide = createSlide(markdown, deckTheme);
-  document.title = slide.title;
-  document.documentElement.setAttribute("data-theme", slide.theme);
-
-  const token = ++renderToken;
-  document.body.classList.add("mermaid-loading");
-  document.getElementById("stage").replaceChildren(slide.deck);
-  if (layoutFrame) {
-    cancelAnimationFrame(layoutFrame);
-    layoutFrame = 0;
-  }
-  layoutTarget = {
-    deck: slide.deck,
-    bodyEl: slide.bodyEl,
-    autoSize:
-      slide.sizeMode === "auto" &&
-      !slide.titleSlide &&
-      !slide.sectionSlide &&
-      !slide.backcoverSlide,
-  };
-  scheduleLayoutRefresh();
-  // Mermaid diagrams and images resolve their size asynchronously, so the
-  // scroll decision has to be revisited once they have settled.
-  //
-  // The loading veil is lifted only once *both* have settled: it is the signal
-  // that the slide is fully painted, and PDF export and the visual regression
-  // suite rely on it. Revealing while an architecture icon under `assets/` is
-  // still loading would capture a half-drawn slide.
-  const images = waitForImages(slide.deck).then(() => {
-    if (token === renderToken) scheduleLayoutRefresh();
-  });
-  const mermaid = runMermaid(slide.bodyEl, slide.theme, token, false).finally(() => {
-    if (token === renderToken) scheduleLayoutRefresh();
-  });
-  Promise.all([mermaid, images]).finally(() => {
-    if (token === renderToken) document.body.classList.remove("mermaid-loading");
-  });
-}
-
 function afterLayout() {
   return new Promise((resolve) => {
     let settled = false;
@@ -597,34 +600,237 @@ function afterLayout() {
   });
 }
 
-function waitForImages(root) {
-  const pending = [...root.querySelectorAll("img")]
-    .filter((image) => !image.complete)
-    .map(
+function displayAssetName(value) {
+  const source = String(value || "");
+  try {
+    const url = new URL(source, document.baseURI);
+    return decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() || source);
+  } catch (_) {
+    return source || "image";
+  }
+}
+
+function waitForImageEvent(image) {
+  if (image.complete) return Promise.resolve();
+  return new Promise((resolve) => {
+    image.addEventListener("load", resolve, { once: true });
+    image.addEventListener("error", resolve, { once: true });
+  });
+}
+
+async function inspectHtmlImage(image) {
+  await waitForImageEvent(image);
+  if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+    return `Could not load local image: ${displayAssetName(image.currentSrc || image.src)}`;
+  }
+  try {
+    await image.decode();
+  } catch (_) {
+    return `Could not decode local image: ${displayAssetName(image.currentSrc || image.src)}`;
+  }
+  return "";
+}
+
+async function inspectSvgImage(image) {
+  const href = image.getAttribute("href") || image.getAttribute("xlink:href");
+  if (!href) return "";
+  const probe = new Image();
+  probe.src = href;
+  await waitForImageEvent(probe);
+  if (probe.naturalWidth <= 0 || probe.naturalHeight <= 0) {
+    return `Could not load diagram image: ${displayAssetName(href)}`;
+  }
+  try {
+    await probe.decode();
+  } catch (_) {
+    return `Could not decode diagram image: ${displayAssetName(href)}`;
+  }
+  return "";
+}
+
+function replaceFailedImage(image, message) {
+  if (!(image instanceof HTMLImageElement) || !image.isConnected) return;
+  const placeholder = document.createElement("div");
+  placeholder.className = "asset-error";
+  placeholder.setAttribute("role", "img");
+  placeholder.setAttribute("aria-label", message);
+  placeholder.textContent = message;
+  image.replaceWith(placeholder);
+}
+
+function reportFailedSvgImage(image, message) {
+  const diagram = image.closest(".architecture-diagram");
+  if (!diagram || diagram.nextElementSibling?.classList.contains("asset-error")) return;
+  const placeholder = document.createElement("div");
+  placeholder.className = "asset-error";
+  placeholder.setAttribute("role", "img");
+  placeholder.setAttribute("aria-label", message);
+  placeholder.textContent = message;
+  diagram.after(placeholder);
+}
+
+async function waitForImages(root, { strict = false } = {}) {
+  const htmlImages = [...root.querySelectorAll("img")];
+  const svgImages = [...root.querySelectorAll("svg image")];
+  const htmlResults = await Promise.all(htmlImages.map(inspectHtmlImage));
+  const svgResults = await Promise.all(svgImages.map(inspectSvgImage));
+  const failures = [...htmlResults, ...svgResults].filter(Boolean);
+
+  if (failures.length && strict) {
+    throw new Error(failures.join("\n"));
+  }
+  htmlResults.forEach((message, index) => {
+    if (message) replaceFailedImage(htmlImages[index], message);
+  });
+  svgResults.forEach((message, index) => {
+    if (message) reportFailedSvgImage(svgImages[index], message);
+  });
+  await afterLayout();
+
+  const zeroSizedImages = [...root.querySelectorAll("img")].filter((image) => {
+    const rect = image.getBoundingClientRect();
+    return rect.width <= 0 || rect.height <= 0;
+  });
+  const zeroSizedSvgImages = [...root.querySelectorAll("svg image")].filter((image) => {
+    const rect = image.getBoundingClientRect();
+    return rect.width <= 0 || rect.height <= 0;
+  });
+  if (zeroSizedImages.length || zeroSizedSvgImages.length) {
+    const imageMessages = zeroSizedImages.map(
       (image) =>
-        new Promise((resolve) => {
-          image.addEventListener("load", resolve, { once: true });
-          image.addEventListener("error", resolve, { once: true });
-        }),
+        `Local image has no drawable size: ${displayAssetName(image.currentSrc || image.src)}`,
     );
-  // SVG <image> is not an HTMLImageElement and has no complete / load properties.
-  // Preload the same URL with an HTMLImageElement and wait for it; the second request
-  // uses the HTTP cache. Otherwise PDF or visual-regression capture can run before
-  // architecture diagram icons render.
-  for (const image of root.querySelectorAll("image")) {
-    const href = image.getAttribute("href") || image.getAttribute("xlink:href");
-    if (!href) continue;
-    pending.push(
-      new Promise((resolve) => {
-        const probe = new Image();
-        probe.addEventListener("load", resolve, { once: true });
-        probe.addEventListener("error", resolve, { once: true });
-        probe.src = href;
-        if (probe.complete) resolve();
-      }),
+    const svgMessages = zeroSizedSvgImages.map((image) => {
+      const href = image.getAttribute("href") || image.getAttribute("xlink:href");
+      return `Diagram image has no drawable size: ${displayAssetName(href)}`;
+    });
+    if (strict) throw new Error([...imageMessages, ...svgMessages].join("\n"));
+    zeroSizedImages.forEach((image, index) => replaceFailedImage(image, imageMessages[index]));
+    zeroSizedSvgImages.forEach((image, index) =>
+      reportFailedSvgImage(image, svgMessages[index]),
     );
   }
-  return Promise.all(pending);
+  return failures;
+}
+
+function slideUsesAutomaticSize(slide) {
+  return (
+    slide.sizeMode === "auto" &&
+    !slide.titleSlide &&
+    !slide.sectionSlide &&
+    !slide.backcoverSlide
+  );
+}
+
+function enqueueRender(operation) {
+  const queued = renderQueue.catch(() => {}).then(operation);
+  renderQueue = queued.catch(() => {});
+  return queued;
+}
+
+async function prepareSlide(
+  markdown,
+  fallbackTheme,
+  themeLocked,
+  themeMetadata,
+  token,
+  { strictAssets },
+) {
+  const staging = document.getElementById("renderStage");
+  if (!staging) throw new Error("The canonical render surface is unavailable.");
+
+  // Editing UI owns document listeners. Remove the previous instance before
+  // constructing another one, but keep the old painted slide visible until commit.
+  architectureEditors.forEach((editor) => editor.destroy());
+  architectureEditors = [];
+  const slide = createSlide(markdown, fallbackTheme, themeLocked, themeMetadata);
+  staging.replaceChildren(slide.deck);
+
+  if (document.fonts?.ready) await document.fonts.ready;
+  await afterLayout();
+  if (slideUsesAutomaticSize(slide)) applyAutoSize(slide.deck, slide.bodyEl);
+  await runMermaid(slide.bodyEl, slide.theme, token, false);
+  rewriteLocalSvgAssetImages(slide.deck);
+  await waitForImages(slide.deck, { strict: strictAssets });
+  await afterLayout();
+  updateBodyScroll(slide.bodyEl);
+  return slide;
+}
+
+function commitSlide(slide, markdown, token) {
+  if (token !== renderToken) return false;
+  const stage = document.getElementById("stage");
+  if (!stage) return false;
+
+  stage.replaceChildren(slide.deck);
+  document.getElementById("renderStage")?.replaceChildren();
+  document.body.classList.toggle("markdstage-empty", !nonEmpty(markdown));
+  document.title = slide.title;
+  document.documentElement.setAttribute("data-theme", slide.theme);
+  if (layoutFrame) {
+    cancelAnimationFrame(layoutFrame);
+    layoutFrame = 0;
+  }
+  layoutTarget = {
+    deck: slide.deck,
+    bodyEl: slide.bodyEl,
+    autoSize: slideUsesAutomaticSize(slide),
+  };
+  window.__presentationRenderState = {
+    ready: true,
+    index: navIndex,
+    total: navTotal,
+    diagnostics: collectRenderDiagnostics(navIndex, navTotal),
+  };
+  fitCanonicalViewport();
+  document.body.classList.remove("mermaid-loading");
+  return true;
+}
+
+function renderSlide(
+  markdown,
+  {
+    theme = deckTheme,
+    themeLocked = deckThemeLocked,
+    customCss = customThemeCss,
+    themeMetadata = customThemeMeta,
+  } = {},
+) {
+  const source = typeof markdown === "string" ? markdown : "";
+  const capturedTheme = normalizeTheme(theme);
+  const capturedThemeLocked = Boolean(themeLocked);
+  const capturedCustomCss = typeof customCss === "string" ? customCss : "";
+  const capturedThemeMetadata =
+    themeMetadata && typeof themeMetadata === "object" ? themeMetadata : null;
+  lastMarkdown = source;
+  const token = ++renderToken;
+  document.body.classList.add("mermaid-loading");
+  window.__presentationRenderState = {
+    ready: false,
+    index: navIndex,
+    total: navTotal,
+  };
+  return enqueueRender(async () => {
+    try {
+      if (token !== renderToken) return false;
+      applyCustomThemeCss(capturedCustomCss);
+      const slide = await prepareSlide(
+        source,
+        capturedTheme,
+        capturedThemeLocked,
+        capturedThemeMetadata,
+        token,
+        { strictAssets: false },
+      );
+      return commitSlide(slide, source, token);
+    } catch (error) {
+      if (token === renderToken) {
+        document.body.classList.remove("mermaid-loading");
+        console.error("Slide render failed", error);
+      }
+      return false;
+    }
+  });
 }
 
 async function reportPrintStatus(token, status, error = "") {
@@ -637,46 +843,109 @@ async function reportPrintStatus(token, status, error = "") {
   if (!response.ok) throw new Error(`Could not report print status (${response.status}).`);
 }
 
-async function renderPrintDeck(
-  slides,
-  theme,
-  customCss = "",
-  themeMetadata = null,
-  themeLocked = false,
-) {
-  deckTheme = normalizeTheme(theme);
-  deckThemeLocked = Boolean(themeLocked);
-  customThemeMeta = themeMetadata && typeof themeMetadata === "object" ? themeMetadata : null;
-  applyCustomThemeCss(customCss);
-  document.documentElement.setAttribute("data-theme", deckTheme);
-  document.documentElement.classList.add("print-mode");
-  document.body.classList.add("print-mode", "mermaid-loading");
-  const rendered = slides.map((markdown) => createSlide(markdown, deckTheme));
-  const stage = document.getElementById("stage");
-  stage.replaceChildren(...rendered.map((slide) => slide.deck));
-  document.title = rendered[0]?.title || "MarkdStage";
+function roundedRect(element, origin = null, scale = null) {
+  const rect = element.getBoundingClientRect();
+  const offsetX = origin?.x || 0;
+  const offsetY = origin?.y || 0;
+  const scaleX = scale?.x || 1;
+  const scaleY = scale?.y || 1;
+  return {
+    x: Math.round(((rect.x - offsetX) / scaleX) * 1000) / 1000,
+    y: Math.round(((rect.y - offsetY) / scaleY) * 1000) / 1000,
+    width: Math.round((rect.width / scaleX) * 1000) / 1000,
+    height: Math.round((rect.height / scaleY) * 1000) / 1000,
+  };
+}
 
-  if (document.fonts?.ready) await document.fonts.ready;
-  await afterLayout();
-  for (const slide of rendered) {
-    if (
-      slide.sizeMode === "auto" &&
-      !slide.titleSlide &&
-      !slide.sectionSlide &&
-      !slide.backcoverSlide
-    ) {
-      applyAutoSize(slide.deck, slide.bodyEl);
+function diagnosticAssetSource(value) {
+  try {
+    return new URL(String(value || ""), document.baseURI).pathname;
+  } catch (_) {
+    return String(value || "");
+  }
+}
+
+function collectRenderDiagnostics(index, total) {
+  const deck = document.querySelector("#stage > .deck");
+  if (!deck) throw new Error("The rendered slide is unavailable.");
+  const body = deck.querySelector(":scope > .body");
+  const style = getComputedStyle(deck);
+  const deckRect = deck.getBoundingClientRect();
+  const scale = {
+    x: deckRect.width / CANONICAL_WIDTH,
+    y: deckRect.height / CANONICAL_HEIGHT,
+  };
+  return {
+    index,
+    total,
+    deck: roundedRect(deck, deckRect, scale),
+    backgroundColor: style.backgroundColor,
+    backgroundImage: style.backgroundImage,
+    topBarPosition: getComputedStyle(deck, "::before").position,
+    textLength: deck.innerText.trim().length,
+    bodyOverflow: body
+      ? {
+          scrollWidth: body.scrollWidth,
+          scrollHeight: body.scrollHeight,
+          clientWidth: body.clientWidth,
+          clientHeight: body.clientHeight,
+        }
+      : null,
+    images: [...deck.querySelectorAll("img")].map((image) => ({
+      kind: "html",
+      source: diagnosticAssetSource(image.currentSrc || image.src),
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      rect: roundedRect(image, deckRect, scale),
+    })).concat(
+      [...deck.querySelectorAll("svg image")].map((image) => ({
+        kind: "svg",
+        source: diagnosticAssetSource(
+          image.getAttribute("href") || image.getAttribute("xlink:href"),
+        ),
+        rect: roundedRect(image, deckRect, scale),
+      })),
+    ),
+    diagrams: [...deck.querySelectorAll(".mermaid svg, .architecture-svg")].map((svg) => ({
+      kind: svg.matches(".architecture-svg") ? "architecture" : "mermaid",
+      viewBox: svg.getAttribute("viewBox") || "",
+      rect: roundedRect(svg, deckRect, scale),
+    })),
+    assetErrors: [...deck.querySelectorAll(".asset-error")].map((error) => error.textContent),
+  };
+}
+
+async function renderPrintSlide(index) {
+  if (!printContext) throw new Error("PDF export data is unavailable.");
+  if (!Number.isInteger(index) || index < 0 || index >= printContext.slides.length) {
+    throw new Error(`PDF slide index is out of range: ${index}`);
+  }
+
+  const markdown = printContext.slides[index];
+  const token = ++renderToken;
+  document.body.classList.add("mermaid-loading");
+  return enqueueRender(async () => {
+    const slide = await prepareSlide(
+      markdown,
+      printContext.theme,
+      printContext.themeLocked,
+      printContext.themeMetadata,
+      token,
+      { strictAssets: true },
+    );
+    if (!commitSlide(slide, markdown, token)) {
+      throw new Error("PDF slide rendering was superseded.");
     }
-  }
-  for (const slide of rendered) {
-    await runMermaid(slide.bodyEl, slide.theme, renderToken, false);
-  }
-  await waitForImages(stage);
-  await afterLayout();
-
-  document.body.classList.remove("mermaid-loading");
-  document.documentElement.setAttribute("data-print-ready", "true");
-  window.__presentationPrintReady = true;
+    const diagnostics = collectRenderDiagnostics(index, printContext.slides.length);
+    window.__presentationPrintState = {
+      ready: true,
+      index,
+      slideCount: printContext.slides.length,
+      error: "",
+      diagnostics,
+    };
+    return { ok: true, ...window.__presentationPrintState };
+  });
 }
 
 async function initPrint(params) {
@@ -695,19 +964,67 @@ async function initPrint(params) {
     ) {
       throw new Error("PDF export data does not contain a valid deck.");
     }
-    await renderPrintDeck(
-      data.slides,
-      data.theme,
-      data.customThemeCss,
-      data.customThemeMeta,
-      data.themeLocked,
-    );
+    deckTheme = normalizeTheme(data.theme);
+    deckThemeLocked = Boolean(data.themeLocked);
+    customThemeMeta =
+      data.customThemeMeta && typeof data.customThemeMeta === "object"
+        ? data.customThemeMeta
+        : null;
+    applyCustomThemeCss(data.customThemeCss);
+    printContext = {
+      slides: data.slides,
+      theme: deckTheme,
+      themeLocked: deckThemeLocked,
+      themeMetadata: customThemeMeta,
+    };
+    document.documentElement.setAttribute("data-theme", deckTheme);
+    document.documentElement.classList.add("print-mode");
+    document.documentElement.dataset.exportToken = token;
+    document.body.classList.add("canonical-mode", "print-mode", "mermaid-loading");
+    window.__presentationPrintReady = false;
+    window.__presentationPrintState = {
+      ready: false,
+      index: -1,
+      slideCount: data.slides.length,
+      error: "",
+    };
+    window.__presentationRenderPrintSlide = async (index) => {
+      try {
+        document.documentElement.removeAttribute("data-print-error");
+        const result = await renderPrintSlide(Number(index));
+        await reportPrintStatus(token, "rendering");
+        return result;
+      } catch (error) {
+        const message = error?.message || "PDF slide rendering failed.";
+        console.error(message);
+        document.body.classList.remove("mermaid-loading");
+        document.documentElement.setAttribute("data-print-error", "true");
+        window.__presentationPrintState = {
+          ready: false,
+          index: Number(index),
+          slideCount: printContext?.slides.length || 0,
+          error: message,
+        };
+        await reportPrintStatus(token, "error", message).catch(() => {});
+        return { ok: false, ...window.__presentationPrintState };
+      }
+    };
+    const first = await window.__presentationRenderPrintSlide(0);
+    if (!first?.ok) throw new Error(first?.error || "Could not render the first PDF slide.");
     await reportPrintStatus(token, "ready");
+    document.documentElement.setAttribute("data-print-ready", "true");
+    window.__presentationPrintReady = true;
   } catch (error) {
     const message = error?.message || "Print rendering failed.";
     console.error(message);
     document.body.classList.remove("mermaid-loading");
     document.documentElement.setAttribute("data-print-error", "true");
+    window.__presentationPrintState = {
+      ready: false,
+      index: -1,
+      slideCount: printContext?.slides.length || 0,
+      error: message,
+    };
     await reportPrintStatus(token, "error", message).catch(() => {});
   }
 }
@@ -727,6 +1044,12 @@ function reportPrintBootstrapFailure(error) {
   console.error(message);
   document.body.classList.remove("mermaid-loading");
   document.documentElement.setAttribute("data-print-error", "true");
+  window.__presentationPrintState = {
+    ready: false,
+    index: -1,
+    slideCount: printContext?.slides.length || 0,
+    error: message,
+  };
 }
 
 // --- live update -----------------------------------------------------------
@@ -994,13 +1317,6 @@ async function fetchState() {
   const res = await fetch(stateUrl, { cache: "no-store" });
   if (!res.ok) return;
   const data = await res.json();
-  if (typeof data.theme === "string") deckTheme = normalizeTheme(data.theme);
-  if (typeof data.themeLocked === "boolean") deckThemeLocked = data.themeLocked;
-  if (typeof data.customThemeCss === "string") applyCustomThemeCss(data.customThemeCss);
-  customThemeMeta =
-    data.customThemeMeta && typeof data.customThemeMeta === "object"
-      ? data.customThemeMeta
-      : null;
   if (typeof data.presenterRunning === "boolean") {
     updatePresenterButton(data.presenterRunning);
   }
@@ -1024,7 +1340,7 @@ async function fetchState() {
       setArchitectureEditMode(data.architectureEdit)) ||
     (architectureEditMode && detailedEditChanged)
   ) {
-    renderSlide(lastMarkdown);
+    await renderSlide(lastMarkdown);
     updateNav();
   }
   // Refresh the deck (titles for the overview) when its content changed.
@@ -1036,10 +1352,29 @@ async function fetchState() {
   // double-render (which would re-trigger the mermaid loading veil).
   if (typeof data.version === "number" && data.version <= currentVersion) return;
   currentVersion = typeof data.version === "number" ? data.version : currentVersion;
+  const nextTheme =
+    typeof data.theme === "string" ? normalizeTheme(data.theme) : deckTheme;
+  const nextThemeLocked =
+    typeof data.themeLocked === "boolean" ? data.themeLocked : deckThemeLocked;
+  const nextCustomThemeCss =
+    typeof data.customThemeCss === "string" ? data.customThemeCss : customThemeCss;
+  const nextCustomThemeMeta =
+    data.customThemeMeta && typeof data.customThemeMeta === "object"
+      ? data.customThemeMeta
+      : null;
+  deckTheme = nextTheme;
+  deckThemeLocked = nextThemeLocked;
+  customThemeCss = nextCustomThemeCss;
+  customThemeMeta = nextCustomThemeMeta;
   if (typeof data.index === "number") navIndex = data.index;
   if (typeof data.total === "number") navTotal = data.total;
   navMode = data.mode === "adhoc" ? "adhoc" : "deck";
-  renderSlide(typeof data.markdown === "string" ? data.markdown : "");
+  await renderSlide(typeof data.markdown === "string" ? data.markdown : "", {
+    theme: nextTheme,
+    themeLocked: nextThemeLocked,
+    customCss: nextCustomThemeCss,
+    themeMetadata: nextCustomThemeMeta,
+  });
   updateNav();
 }
 
@@ -1259,9 +1594,7 @@ function renderPresenterNotes(markdown) {
   if (!notes) return;
 
   target.innerHTML = window.DOMPurify.sanitize(window.marked.parse(notes));
-  target.querySelectorAll('img[src^="/assets/"]').forEach((image) => {
-    image.setAttribute("src", localAssetUrl(image.getAttribute("src")));
-  });
+  rewriteLocalAssetImages(target);
   applyEmojiShortcodes(target);
   applySyntaxHighlighting(target);
 }
@@ -1650,16 +1983,22 @@ function connectEvents() {
   }
 }
 
-function fitPreviewViewport() {
-  if (!previewMode) return;
+function fitCanonicalViewport() {
+  if (
+    !document.body.classList.contains("canonical-mode") ||
+    document.body.classList.contains("print-mode")
+  ) {
+    return;
+  }
   const stage = document.getElementById("stage");
   if (!stage) return;
-  const width = 1280;
-  const height = 720;
-  const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
-  stage.style.left = `${Math.max(0, (window.innerWidth - width * scale) / 2)}px`;
-  stage.style.top = `${Math.max(0, (window.innerHeight - height * scale) / 2)}px`;
-  stage.style.transform = `scale(${scale})`;
+  const scale = Math.min(
+    window.innerWidth / CANONICAL_WIDTH,
+    window.innerHeight / CANONICAL_HEIGHT,
+  );
+  stage.style.left = `${Math.max(0, (window.innerWidth - CANONICAL_WIDTH * scale) / 2)}px`;
+  stage.style.top = `${Math.max(0, (window.innerHeight - CANONICAL_HEIGHT * scale) / 2)}px`;
+  stage.style.transform = Math.abs(scale - 1) < 0.0001 ? "none" : `scale(${scale})`;
 }
 
 function init() {
@@ -1671,6 +2010,7 @@ function init() {
   } catch (_) {}
 
   const params = new URLSearchParams(window.location.search);
+  document.body.classList.add("canonical-mode");
   if (params.get("print") === "1") {
     // Print mode never reaches editing-mode branches. Removing this return would
     // bake the editing UI into PDFs, so a regression test protects it.
@@ -1688,7 +2028,6 @@ function init() {
     previewOffset = Math.max(-1, Math.min(1, Number(params.get("offset")) || 0));
     navigationEnabled = params.get("navigate") === "1" && previewOffset === 0;
     document.body.classList.add("presenter-mode", "preview-mode");
-    fitPreviewViewport();
   } else if (params.get("present") === "1") {
     presenterMode = true;
     document.body.classList.add("presenter-mode");
@@ -1701,6 +2040,7 @@ function init() {
     requestArchitectureEditMode(true);
   }
 
+  fitCanonicalViewport();
   updateArchitectureEditButton();
   if (!previewMode) wireControls();
   else if (navigationEnabled) {
@@ -1708,12 +2048,8 @@ function init() {
     wirePreviewKeyboardNavigation();
   }
   window.addEventListener("resize", () => {
-    fitPreviewViewport();
-    scheduleLayoutRefresh();
+    fitCanonicalViewport();
   });
-  if (document.fonts?.ready) {
-    document.fonts.ready.then(scheduleLayoutRefresh).catch(() => {});
-  }
 
   fetchState()
     .catch((error) => console.error("Initial MarkdStage state load failed", error))

@@ -209,7 +209,10 @@ function localAssetUrl(documentRef, path) {
   try {
     const base = new URL(documentRef.baseURI);
     if (base.protocol === "http:" || base.protocol === "https:") {
-      return new URL(normalized, base).pathname;
+      const assetURL = new URL(normalized, base);
+      const exportToken = documentRef.documentElement?.dataset.exportToken || "";
+      if (exportToken) assetURL.searchParams.set("exportToken", exportToken);
+      return `${assetURL.pathname}${assetURL.search}${assetURL.hash}`;
     }
   } catch (_) {}
   return `/${normalized}`;
