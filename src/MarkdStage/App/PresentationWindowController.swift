@@ -2,7 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 @MainActor
-final class PresentationWindowController: NSWindowController, NSWindowDelegate, NSUserInterfaceValidations, @unchecked Sendable {
+final class PresentationWindowController: NSWindowController, NSWindowDelegate, NSSplitViewDelegate, NSUserInterfaceValidations, @unchecked Sendable {
     private let session: PresentationSession
     private let server: PresentationServer
     private let loader = DeckLoader()
@@ -334,10 +334,9 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         let outerSplit = NSSplitView()
         outerSplit.isVertical = true
         outerSplit.dividerStyle = .paneSplitter
+        outerSplit.delegate = self
 
         let slideListPane = titledPane(title: "SLIDES", content: thumbnailSidebar)
-        slideListPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
-        slideListPane.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
 
         let currentContainer = NSView()
         let currentAspect = AspectRatioView(contentView: currentSlideView)
@@ -356,11 +355,9 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             emptyState.bottomAnchor.constraint(equalTo: currentContainer.bottomAnchor)
         ])
         let currentPane = titledPane(title: "CURRENT SLIDE", content: currentContainer)
-        currentPane.heightAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
 
         let nextAspect = AspectRatioView(contentView: nextSlideView)
         let nextPane = titledPane(title: "NEXT SLIDE", content: nextAspect)
-        nextPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
         nextPlaceholder.textColor = .secondaryLabelColor
         nextPlaceholder.alignment = .center
         nextPlaceholder.translatesAutoresizingMaskIntoConstraints = false
@@ -381,20 +378,20 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         notesScroll.autohidesScrollers = true
         notesScroll.documentView = notesTextView
         let notesPane = titledPane(title: "SPEAKER NOTES", content: notesScroll)
-        notesPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
 
         let lowerSplit = NSSplitView()
         lowerSplit.isVertical = true
         lowerSplit.dividerStyle = .paneSplitter
+        lowerSplit.delegate = self
         lowerSplit.addArrangedSubview(notesPane)
         lowerSplit.addArrangedSubview(nextPane)
         lowerSplit.autosaveName = "MarkdStageOperatorLowerSplitV2"
-        lowerSplit.heightAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
         lowerSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 1)
 
         let workspaceSplit = NSSplitView()
         workspaceSplit.isVertical = false
         workspaceSplit.dividerStyle = .paneSplitter
+        workspaceSplit.delegate = self
         workspaceSplit.addArrangedSubview(currentPane)
         workspaceSplit.addArrangedSubview(lowerSplit)
         workspaceSplit.autosaveName = "MarkdStageOperatorWorkspaceSplitV2"
@@ -435,6 +432,53 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         if shouldSetLower {
             lower.setPosition(lower.bounds.width * 0.62, ofDividerAt: 0)
         }
+    }
+
+    func splitView(
+        _ splitView: NSSplitView,
+        constrainMinCoordinate proposedMinimumPosition: CGFloat,
+        ofSubviewAt dividerIndex: Int
+    ) -> CGFloat {
+        if splitView === outerSplitView {
+            return max(proposedMinimumPosition, 180)
+        }
+        if splitView === workspaceSplitView {
+            return max(proposedMinimumPosition, 300)
+        }
+        if splitView === lowerSplitView {
+            return max(proposedMinimumPosition, 300)
+        }
+        return proposedMinimumPosition
+    }
+
+    func splitView(
+        _ splitView: NSSplitView,
+        constrainMaxCoordinate proposedMaximumPosition: CGFloat,
+        ofSubviewAt dividerIndex: Int
+    ) -> CGFloat {
+        if splitView === outerSplitView {
+            return min(
+                proposedMaximumPosition,
+                min(320, splitView.bounds.width - 560 - splitView.dividerThickness)
+            )
+        }
+        if splitView === workspaceSplitView {
+            return min(
+                proposedMaximumPosition,
+                splitView.bounds.height - 200 - splitView.dividerThickness
+            )
+        }
+        if splitView === lowerSplitView {
+            return min(
+                proposedMaximumPosition,
+                splitView.bounds.width - 260 - splitView.dividerThickness
+            )
+        }
+        return proposedMaximumPosition
+    }
+
+    func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool {
+        false
     }
 
     private func makeFooter() -> NSView {

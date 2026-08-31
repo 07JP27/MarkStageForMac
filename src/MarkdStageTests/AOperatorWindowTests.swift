@@ -40,6 +40,8 @@ final class AOperatorWindowTests: XCTestCase {
             thumbnailProvider: NoopThumbnailProvider()
         )
         Self.retainedControllers.append(controller)
+        controller.showWindow(nil)
+        controller.window?.layoutIfNeeded()
         let contentView = try XCTUnwrap(controller.window?.contentView)
         let allButtons = buttons(in: contentView)
         let sidebar = try XCTUnwrap(
@@ -67,6 +69,22 @@ final class AOperatorWindowTests: XCTestCase {
             "SPEAKER NOTES",
             "NEXT SLIDE"
         ]))
+        for splitView in splitViews {
+            splitView.layoutSubtreeIfNeeded()
+            let before = firstPaneThickness(in: splitView)
+            let position = dividerPosition(in: splitView)
+            splitView.setPosition(position + 20, ofDividerAt: 0)
+            splitView.layoutSubtreeIfNeeded()
+            if abs(firstPaneThickness(in: splitView) - before) <= 0.5 {
+                splitView.setPosition(position - 20, ofDividerAt: 0)
+                splitView.layoutSubtreeIfNeeded()
+            }
+            XCTAssertNotEqual(
+                firstPaneThickness(in: splitView),
+                before,
+                accuracy: 0.5
+            )
+        }
         XCTAssertEqual(sidebar.itemCount, 3)
         XCTAssertEqual(sidebar.currentSelection, 0)
 
@@ -144,6 +162,21 @@ final class AOperatorWindowTests: XCTestCase {
 
     private func descendants(in view: NSView) -> [NSView] {
         [view] + view.subviews.flatMap(descendants)
+    }
+
+    private func firstPaneThickness(in splitView: NSSplitView) -> CGFloat {
+        guard let first = splitView.arrangedSubviews.first else { return 0 }
+        return splitView.isVertical ? first.frame.width : first.frame.height
+    }
+
+    private func dividerPosition(in splitView: NSSplitView) -> CGFloat {
+        guard splitView.arrangedSubviews.count >= 2 else { return 0 }
+        let first = splitView.arrangedSubviews[0].frame
+        let second = splitView.arrangedSubviews[1].frame
+        if splitView.isVertical {
+            return first.maxX
+        }
+        return first.midY < second.midY ? first.maxY : first.minY
     }
 
     private nonisolated static func clearLayoutDefaults() {
