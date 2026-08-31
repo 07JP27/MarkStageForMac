@@ -13,7 +13,7 @@ final class PDFExportCoordinator: NSObject {
     private var renderer: DeckPDFRenderer?
 
     init(
-        parentWindow: NSWindow,
+        parentWindow: NSWindow?,
         baseURL: URL,
         preparedDocument: PDFDocument? = nil,
         onCompletion: @escaping () -> Void = {},

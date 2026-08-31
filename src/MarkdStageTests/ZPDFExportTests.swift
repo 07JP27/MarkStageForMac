@@ -16,7 +16,7 @@ final class ZPDFExportTests: XCTestCase {
         let exportCompleted = expectation(description: "PDF export completed")
         var lastStatus = ""
         let coordinator = PDFExportCoordinator(
-            parentWindow: fixture.parentWindow,
+            parentWindow: nil,
             baseURL: fixture.baseURL,
             preparedDocument: preparedDocument,
             onCompletion: { exportCompleted.fulfill() },
@@ -67,19 +67,11 @@ final class ZPDFExportTests: XCTestCase {
 
         let server = try PresentationServer(session: session)
         try server.start()
-        let parentWindow = NSWindow(
-            contentRect: NSRect(x: 100, y: 100, width: 640, height: 400),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        parentWindow.orderBack(nil)
         return Fixture(
             root: root,
             document: document,
             server: server,
-            baseURL: try XCTUnwrap(server.baseURL),
-            parentWindow: parentWindow
+            baseURL: try XCTUnwrap(server.baseURL)
         )
     }
 
@@ -105,12 +97,10 @@ final class ZPDFExportTests: XCTestCase {
         let document: DeckDocument
         let server: PresentationServer
         let baseURL: URL
-        let parentWindow: NSWindow
 
         @MainActor
         func cleanUp() {
             server.stop()
-            parentWindow.close()
             try? FileManager.default.removeItem(at: root)
         }
     }
