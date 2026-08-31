@@ -1,0 +1,80 @@
+name: MarkdStage
+
+options:
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  MarkdStage:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: MarkdStage/App
+      - path: MarkdStage/Core
+      - path: MarkdStage/Server
+      - path: MarkdStage/Viewer
+      - path: MarkdStage/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: MarkdStage/Resources/THIRD-PARTY-NOTICES.md
+        buildPhase: resources
+      - path: MarkdStage/Resources/LICENSE
+        buildPhase: resources
+      - path: MarkdStage/Resources/LICENSES
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.jp27.MarkdStage
+        PRODUCT_NAME: MarkdStage
+        INFOPLIST_FILE: MarkdStage/Resources/Info.plist
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "0.1.0"
+        GENERATE_INFOPLIST_FILE: "NO"
+        ENABLE_HARDENED_RUNTIME: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Release:
+          CODE_SIGN_ENTITLEMENTS: MarkdStage/Resources/MarkdStage.Release.entitlements
+    postBuildScripts:
+      - name: Copy bundled web resources
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Web/index.html"
+        script: |
+          set -euo pipefail
+          RESOURCES_DIR="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+          mkdir -p "${RESOURCES_DIR}"
+          rsync -a --delete "${SRCROOT}/MarkdStage/Resources/Web" "${RESOURCES_DIR}/"
+
+  MarkdStageTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: MarkdStageTests
+    dependencies:
+      - target: MarkdStage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.jp27.MarkdStageTests
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/MarkdStage.app/Contents/MacOS/MarkdStage"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  MarkdStage:
+    build:
+      targets:
+        MarkdStage: all
+        MarkdStageTests: [test]
+    test:
+      targets:
+        - MarkdStageTests

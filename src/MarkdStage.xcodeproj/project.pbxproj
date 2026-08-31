@@ -1,0 +1,681 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0212D48521AF2CB3B57246A3 /* SlideThumbnailProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5200A2CBA829B62289CE4605 /* SlideThumbnailProviderTests.swift */; };
+		0B2CAA83738FB1FDFD61EAA9 /* theme.json in Resources */ = {isa = PBXBuildFile; fileRef = 68FEC51ACDB334F5977602CE /* theme.json */; };
+		0D35E24AB3C8BD8AC05431F6 /* DeckLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21B546F5F3DF276BD44C4A8D /* DeckLoader.swift */; };
+		0DB52B7D91899FCDAD9D1791 /* PresentationServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA2D83D22932CCA8F87F210 /* PresentationServerTests.swift */; };
+		13586A7E806642429F70F335 /* SpeakerNotesExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E416A5C132097A6E2137C8F4 /* SpeakerNotesExtractor.swift */; };
+		136BD065FBF482083D277D4E /* AudienceWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDB66872D01E733C4A333E02 /* AudienceWindowController.swift */; };
+		180EA42BE6EBC3A46B39C1DC /* PresentationWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0AC115C0D0A36FDAE40B26C /* PresentationWindowController.swift */; };
+		207DCDA561AB84377B07E1A6 /* SlideTitleDeriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A9E2A63F63955B717CCAB6D /* SlideTitleDeriver.swift */; };
+		235A6531EE6714256F9962FA /* DeckWatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E909FB75B6382393D52DDFE0 /* DeckWatcherTests.swift */; };
+		282FF89EBB71BA11E5DFF9CC /* theme.css in Resources */ = {isa = PBXBuildFile; fileRef = FB7C396D99F0B6EBC4DBAA16 /* theme.css */; };
+		28D9F516CF64D00DBD158A27 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 3E4F15676A4DABFCCD522437 /* LICENSE */; };
+		29D5E2C9CD6456B36671420C /* deck.md in Resources */ = {isa = PBXBuildFile; fileRef = B5461530BBD3554E4866DA6B /* deck.md */; };
+		2A8D06843B6FAF044232F716 /* parity-background.svg in Resources */ = {isa = PBXBuildFile; fileRef = 65D1867F495831A1D156EC98 /* parity-background.svg */; };
+		2BE050911C496778BB809C17 /* AspectRatioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7E4E635BF7431834276A07 /* AspectRatioView.swift */; };
+		2BFE14C2281A6049866D5A74 /* AOperatorWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20A7DD352DF5EFEDB5D78429 /* AOperatorWindowTests.swift */; };
+		3B33F9A12F5035541DFF2EA3 /* PDFSmokeRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED494A073F052D8B3B43530 /* PDFSmokeRunner.swift */; };
+		48698B35264DC86A7F02A867 /* SlideThumbnailSidebarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EA7CBF17A3C4A013668083 /* SlideThumbnailSidebarTests.swift */; };
+		4888895F221B7C0EC11B1105 /* DeckPDFRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7357A550884B32B4479C4AAB /* DeckPDFRenderer.swift */; };
+		4E166A0EC95D0C1713F1C613 /* PathSecurity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05178D674F1DA66C64E9CBA2 /* PathSecurity.swift */; };
+		575EA2AF288BE4AFBCDDDB5A /* ThemeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04E779D8DF905B3303DCD86 /* ThemeService.swift */; };
+		5C00DD155DB252145F6D5603 /* parity-logo.svg in Resources */ = {isa = PBXBuildFile; fileRef = 0F3636EF5F95A39E12E159D8 /* parity-logo.svg */; };
+		6C7057323926685EC488C975 /* LICENSES in Resources */ = {isa = PBXBuildFile; fileRef = B2AC85B6510C2B01DF1B971F /* LICENSES */; };
+		6E0A18C3E716D29BD0FBA3F4 /* SlideWebViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68FFD9A2C458840217D9485D /* SlideWebViewTests.swift */; };
+		7102C6DD00D8A888C84C41E6 /* markdown-deck-corpus.json in Resources */ = {isa = PBXBuildFile; fileRef = 5C586BE1204B370AB6B862FC /* markdown-deck-corpus.json */; };
+		73D5E50EED3C18551FF0FF0E /* missing-asset.md in Resources */ = {isa = PBXBuildFile; fileRef = CBAC0C3D88595C33F3056C1B /* missing-asset.md */; };
+		857CAFB9265D7E4CCD0465B2 /* RendererParityValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E6AB89AB60B42C67AB4280 /* RendererParityValidator.swift */; };
+		85EB212AF21767AFC560B413 /* MainMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93C2E2E6B0B4EC508E711F50 /* MainMenuBuilder.swift */; };
+		AA300819199E5DDB1BEB4759 /* ZPDFExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BA9992DEF7FB9E86FAC7029 /* ZPDFExportTests.swift */; };
+		AC5965B329602489081C9A6B /* MarkdownDeckParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F68BEF41A26B298EC2151B /* MarkdownDeckParser.swift */; };
+		AD9C381026B9DB011EB96583 /* DeckModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E70BE497299334C0BB531B6 /* DeckModels.swift */; };
+		B2F70CCE4CF1F22412F7E8FB /* SlideThumbnailSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B95CB59BFB3092EE3E8C8A4 /* SlideThumbnailSidebar.swift */; };
+		B3EA95E6DDDDC7280BAEF306 /* THIRD-PARTY-NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = 13A313953A0E67D0F24F2491 /* THIRD-PARTY-NOTICES.md */; };
+		BEEBFFF61B4C07F3DB1A0DC4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 03547E2F85AE9CEDDC4ADFE6 /* Assets.xcassets */; };
+		C3DBCDEAA7569C85CDFC43AD /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDE3D8EE0FEB4210709C5685 /* EmptyStateView.swift */; };
+		C60575F71C5D56B45F997A7E /* DeckWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9ED406CE6835713057775B3 /* DeckWatcher.swift */; };
+		C6CE79B7848C194021CF3678 /* PDFExportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF837AA3B67E096057634E9 /* PDFExportCoordinator.swift */; };
+		C798AE85F96C35C95C031BDB /* PresentationServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA18C01C2BF98691ECE953D /* PresentationServer.swift */; };
+		C87564B609F1C19151569F4C /* markdstage-mark.svg in Resources */ = {isa = PBXBuildFile; fileRef = 67788CC6F45A8ACC9F68382C /* markdstage-mark.svg */; };
+		D4E6B0ADAE74836CA608D613 /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA79CD702A7D3F1936B6EA67 /* CoreTests.swift */; };
+		D8E3E778D0759806A12406CA /* SlideWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A39F478B485BBE453E02CA7 /* SlideWebView.swift */; };
+		DBA876E8DAC9825FF130B99A /* PresentationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D741496809CA7120017CBBA /* PresentationSession.swift */; };
+		DC57768305BF4A0986B431D7 /* ApplicationMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A29784D1D92ABA7A4C3F4A4 /* ApplicationMain.swift */; };
+		E2595E06D9AB6548FD591131 /* SlideThumbnailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0516BB3A2641EA6172AA5382 /* SlideThumbnailProvider.swift */; };
+		E6C3D8D3A2041DC0BE56F253 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D249E876773C2A07058B3D8 /* AppDelegate.swift */; };
+		ED6232D062C6D7CC7F8E568D /* DeckDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D12C0F8386ABA7148F9B99B /* DeckDropView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1A07F7D2AC4F5EC6AC228C1C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A07A72A59474F308D657F047 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A7EBD2184228A84894A31E51;
+			remoteInfo = MarkdStage;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		03547E2F85AE9CEDDC4ADFE6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		0516BB3A2641EA6172AA5382 /* SlideThumbnailProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideThumbnailProvider.swift; sourceTree = "<group>"; };
+		05178D674F1DA66C64E9CBA2 /* PathSecurity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathSecurity.swift; sourceTree = "<group>"; };
+		0A39F478B485BBE453E02CA7 /* SlideWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideWebView.swift; sourceTree = "<group>"; };
+		0C4A34B76AC64A553FFEEEA6 /* MarkdStageTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarkdStageTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0F3636EF5F95A39E12E159D8 /* parity-logo.svg */ = {isa = PBXFileReference; path = "parity-logo.svg"; sourceTree = "<group>"; };
+		13A313953A0E67D0F24F2491 /* THIRD-PARTY-NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "THIRD-PARTY-NOTICES.md"; sourceTree = "<group>"; };
+		1A29784D1D92ABA7A4C3F4A4 /* ApplicationMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationMain.swift; sourceTree = "<group>"; };
+		1A9E2A63F63955B717CCAB6D /* SlideTitleDeriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideTitleDeriver.swift; sourceTree = "<group>"; };
+		1AA2D83D22932CCA8F87F210 /* PresentationServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationServerTests.swift; sourceTree = "<group>"; };
+		20A7DD352DF5EFEDB5D78429 /* AOperatorWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AOperatorWindowTests.swift; sourceTree = "<group>"; };
+		21B546F5F3DF276BD44C4A8D /* DeckLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckLoader.swift; sourceTree = "<group>"; };
+		3E4F15676A4DABFCCD522437 /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
+		5200A2CBA829B62289CE4605 /* SlideThumbnailProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideThumbnailProviderTests.swift; sourceTree = "<group>"; };
+		5C586BE1204B370AB6B862FC /* markdown-deck-corpus.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "markdown-deck-corpus.json"; sourceTree = "<group>"; };
+		5CF837AA3B67E096057634E9 /* PDFExportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportCoordinator.swift; sourceTree = "<group>"; };
+		5E70BE497299334C0BB531B6 /* DeckModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckModels.swift; sourceTree = "<group>"; };
+		65D1867F495831A1D156EC98 /* parity-background.svg */ = {isa = PBXFileReference; path = "parity-background.svg"; sourceTree = "<group>"; };
+		67788CC6F45A8ACC9F68382C /* markdstage-mark.svg */ = {isa = PBXFileReference; path = "markdstage-mark.svg"; sourceTree = "<group>"; };
+		68FEC51ACDB334F5977602CE /* theme.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = theme.json; sourceTree = "<group>"; };
+		68FFD9A2C458840217D9485D /* SlideWebViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideWebViewTests.swift; sourceTree = "<group>"; };
+		7357A550884B32B4479C4AAB /* DeckPDFRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckPDFRenderer.swift; sourceTree = "<group>"; };
+		73FCCCCAD47D64BE7C9FDF42 /* MarkdStage.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MarkdStage.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B95CB59BFB3092EE3E8C8A4 /* SlideThumbnailSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideThumbnailSidebar.swift; sourceTree = "<group>"; };
+		7D741496809CA7120017CBBA /* PresentationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationSession.swift; sourceTree = "<group>"; };
+		8D12C0F8386ABA7148F9B99B /* DeckDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckDropView.swift; sourceTree = "<group>"; };
+		93C2E2E6B0B4EC508E711F50 /* MainMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuBuilder.swift; sourceTree = "<group>"; };
+		9AA18C01C2BF98691ECE953D /* PresentationServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationServer.swift; sourceTree = "<group>"; };
+		9BA9992DEF7FB9E86FAC7029 /* ZPDFExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZPDFExportTests.swift; sourceTree = "<group>"; };
+		9D249E876773C2A07058B3D8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A04E779D8DF905B3303DCD86 /* ThemeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeService.swift; sourceTree = "<group>"; };
+		A1F68BEF41A26B298EC2151B /* MarkdownDeckParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDeckParser.swift; sourceTree = "<group>"; };
+		B2AC85B6510C2B01DF1B971F /* LICENSES */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LICENSES; path = MarkdStage/Resources/LICENSES; sourceTree = SOURCE_ROOT; };
+		B5461530BBD3554E4866DA6B /* deck.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = deck.md; sourceTree = "<group>"; };
+		B9ED406CE6835713057775B3 /* DeckWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckWatcher.swift; sourceTree = "<group>"; };
+		BDB66872D01E733C4A333E02 /* AudienceWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudienceWindowController.swift; sourceTree = "<group>"; };
+		CBAC0C3D88595C33F3056C1B /* missing-asset.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "missing-asset.md"; sourceTree = "<group>"; };
+		DD7E4E635BF7431834276A07 /* AspectRatioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AspectRatioView.swift; sourceTree = "<group>"; };
+		E416A5C132097A6E2137C8F4 /* SpeakerNotesExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerNotesExtractor.swift; sourceTree = "<group>"; };
+		E909FB75B6382393D52DDFE0 /* DeckWatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckWatcherTests.swift; sourceTree = "<group>"; };
+		EDE3D8EE0FEB4210709C5685 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		EED494A073F052D8B3B43530 /* PDFSmokeRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFSmokeRunner.swift; sourceTree = "<group>"; };
+		F0AC115C0D0A36FDAE40B26C /* PresentationWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationWindowController.swift; sourceTree = "<group>"; };
+		F2E6AB89AB60B42C67AB4280 /* RendererParityValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RendererParityValidator.swift; sourceTree = "<group>"; };
+		F2EA7CBF17A3C4A013668083 /* SlideThumbnailSidebarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideThumbnailSidebarTests.swift; sourceTree = "<group>"; };
+		FA79CD702A7D3F1936B6EA67 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
+		FB7C396D99F0B6EBC4DBAA16 /* theme.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = theme.css; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		05ABE832E7CAA83232B1A53E /* MarkdStage */ = {
+			isa = PBXGroup;
+			children = (
+				77A2EB7DDA1A29F21E45F599 /* App */,
+				18BFAFC487C5E0C655991A63 /* Core */,
+				3D9FCAB74E8B89447A7BFEB6 /* Resources */,
+				7B10DE3F50BF74783A9DB2EC /* Server */,
+				2C6CD09EA510999F88B08E0C /* Viewer */,
+			);
+			path = MarkdStage;
+			sourceTree = "<group>";
+		};
+		18BFAFC487C5E0C655991A63 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				21B546F5F3DF276BD44C4A8D /* DeckLoader.swift */,
+				5E70BE497299334C0BB531B6 /* DeckModels.swift */,
+				B9ED406CE6835713057775B3 /* DeckWatcher.swift */,
+				A1F68BEF41A26B298EC2151B /* MarkdownDeckParser.swift */,
+				05178D674F1DA66C64E9CBA2 /* PathSecurity.swift */,
+				7D741496809CA7120017CBBA /* PresentationSession.swift */,
+				1A9E2A63F63955B717CCAB6D /* SlideTitleDeriver.swift */,
+				E416A5C132097A6E2137C8F4 /* SpeakerNotesExtractor.swift */,
+				A04E779D8DF905B3303DCD86 /* ThemeService.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		24FE107B8ABB969769890309 /* MarkdStageTests */ = {
+			isa = PBXGroup;
+			children = (
+				20A7DD352DF5EFEDB5D78429 /* AOperatorWindowTests.swift */,
+				FA79CD702A7D3F1936B6EA67 /* CoreTests.swift */,
+				E909FB75B6382393D52DDFE0 /* DeckWatcherTests.swift */,
+				1AA2D83D22932CCA8F87F210 /* PresentationServerTests.swift */,
+				5200A2CBA829B62289CE4605 /* SlideThumbnailProviderTests.swift */,
+				F2EA7CBF17A3C4A013668083 /* SlideThumbnailSidebarTests.swift */,
+				68FFD9A2C458840217D9485D /* SlideWebViewTests.swift */,
+				9BA9992DEF7FB9E86FAC7029 /* ZPDFExportTests.swift */,
+				95FF30957429B7B4C503CCA5 /* Fixtures */,
+			);
+			path = MarkdStageTests;
+			sourceTree = "<group>";
+		};
+		2C6CD09EA510999F88B08E0C /* Viewer */ = {
+			isa = PBXGroup;
+			children = (
+				0A39F478B485BBE453E02CA7 /* SlideWebView.swift */,
+			);
+			path = Viewer;
+			sourceTree = "<group>";
+		};
+		3D9FCAB74E8B89447A7BFEB6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				03547E2F85AE9CEDDC4ADFE6 /* Assets.xcassets */,
+				3E4F15676A4DABFCCD522437 /* LICENSE */,
+				B2AC85B6510C2B01DF1B971F /* LICENSES */,
+				13A313953A0E67D0F24F2491 /* THIRD-PARTY-NOTICES.md */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		4B274D656BCCD6BDBF8D35A2 /* brand */ = {
+			isa = PBXGroup;
+			children = (
+				67788CC6F45A8ACC9F68382C /* markdstage-mark.svg */,
+			);
+			path = brand;
+			sourceTree = "<group>";
+		};
+		6A9057657F2C2112638D94F9 /* RenderingParity */ = {
+			isa = PBXGroup;
+			children = (
+				B5461530BBD3554E4866DA6B /* deck.md */,
+				CBAC0C3D88595C33F3056C1B /* missing-asset.md */,
+				FB7C396D99F0B6EBC4DBAA16 /* theme.css */,
+				68FEC51ACDB334F5977602CE /* theme.json */,
+				E762890A99FA2311FF597526 /* assets */,
+			);
+			path = RenderingParity;
+			sourceTree = "<group>";
+		};
+		6E1BDE7A5FBA815D94FD91C9 = {
+			isa = PBXGroup;
+			children = (
+				05ABE832E7CAA83232B1A53E /* MarkdStage */,
+				24FE107B8ABB969769890309 /* MarkdStageTests */,
+				F231E0E6509D419B7EBE52AC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		77A2EB7DDA1A29F21E45F599 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9D249E876773C2A07058B3D8 /* AppDelegate.swift */,
+				1A29784D1D92ABA7A4C3F4A4 /* ApplicationMain.swift */,
+				DD7E4E635BF7431834276A07 /* AspectRatioView.swift */,
+				BDB66872D01E733C4A333E02 /* AudienceWindowController.swift */,
+				8D12C0F8386ABA7148F9B99B /* DeckDropView.swift */,
+				7357A550884B32B4479C4AAB /* DeckPDFRenderer.swift */,
+				EDE3D8EE0FEB4210709C5685 /* EmptyStateView.swift */,
+				93C2E2E6B0B4EC508E711F50 /* MainMenuBuilder.swift */,
+				5CF837AA3B67E096057634E9 /* PDFExportCoordinator.swift */,
+				EED494A073F052D8B3B43530 /* PDFSmokeRunner.swift */,
+				F0AC115C0D0A36FDAE40B26C /* PresentationWindowController.swift */,
+				F2E6AB89AB60B42C67AB4280 /* RendererParityValidator.swift */,
+				0516BB3A2641EA6172AA5382 /* SlideThumbnailProvider.swift */,
+				7B95CB59BFB3092EE3E8C8A4 /* SlideThumbnailSidebar.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		7B10DE3F50BF74783A9DB2EC /* Server */ = {
+			isa = PBXGroup;
+			children = (
+				9AA18C01C2BF98691ECE953D /* PresentationServer.swift */,
+			);
+			path = Server;
+			sourceTree = "<group>";
+		};
+		95FF30957429B7B4C503CCA5 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				5C586BE1204B370AB6B862FC /* markdown-deck-corpus.json */,
+				6A9057657F2C2112638D94F9 /* RenderingParity */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		E762890A99FA2311FF597526 /* assets */ = {
+			isa = PBXGroup;
+			children = (
+				65D1867F495831A1D156EC98 /* parity-background.svg */,
+				0F3636EF5F95A39E12E159D8 /* parity-logo.svg */,
+				4B274D656BCCD6BDBF8D35A2 /* brand */,
+			);
+			path = assets;
+			sourceTree = "<group>";
+		};
+		F231E0E6509D419B7EBE52AC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				73FCCCCAD47D64BE7C9FDF42 /* MarkdStage.app */,
+				0C4A34B76AC64A553FFEEEA6 /* MarkdStageTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		60E8C127D9AA7FB120BA7A5F /* MarkdStageTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2F58BCFE3B1DF82DBBA78C6B /* Build configuration list for PBXNativeTarget "MarkdStageTests" */;
+			buildPhases = (
+				A4DC2A5B2BD47AA71D6D7840 /* Sources */,
+				48DFE90626FC4B517EF813F0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7542713E01E614138E1B48F0 /* PBXTargetDependency */,
+			);
+			name = MarkdStageTests;
+			packageProductDependencies = (
+			);
+			productName = MarkdStageTests;
+			productReference = 0C4A34B76AC64A553FFEEEA6 /* MarkdStageTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A7EBD2184228A84894A31E51 /* MarkdStage */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8544D42703835369AE149AFC /* Build configuration list for PBXNativeTarget "MarkdStage" */;
+			buildPhases = (
+				FA84107E2D762705CD8A83B4 /* Sources */,
+				9075700D89631FCDC930A6AD /* Resources */,
+				9291E1F3A0EF0E65FC36DE42 /* Copy bundled web resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MarkdStage;
+			packageProductDependencies = (
+			);
+			productName = MarkdStage;
+			productReference = 73FCCCCAD47D64BE7C9FDF42 /* MarkdStage.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A07A72A59474F308D657F047 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 9F781C920AF12ECF55FDC0D7 /* Build configuration list for PBXProject "MarkdStage" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6E1BDE7A5FBA815D94FD91C9;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A7EBD2184228A84894A31E51 /* MarkdStage */,
+				60E8C127D9AA7FB120BA7A5F /* MarkdStageTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		48DFE90626FC4B517EF813F0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				29D5E2C9CD6456B36671420C /* deck.md in Resources */,
+				7102C6DD00D8A888C84C41E6 /* markdown-deck-corpus.json in Resources */,
+				C87564B609F1C19151569F4C /* markdstage-mark.svg in Resources */,
+				73D5E50EED3C18551FF0FF0E /* missing-asset.md in Resources */,
+				2A8D06843B6FAF044232F716 /* parity-background.svg in Resources */,
+				5C00DD155DB252145F6D5603 /* parity-logo.svg in Resources */,
+				282FF89EBB71BA11E5DFF9CC /* theme.css in Resources */,
+				0B2CAA83738FB1FDFD61EAA9 /* theme.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9075700D89631FCDC930A6AD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEEBFFF61B4C07F3DB1A0DC4 /* Assets.xcassets in Resources */,
+				28D9F516CF64D00DBD158A27 /* LICENSE in Resources */,
+				6C7057323926685EC488C975 /* LICENSES in Resources */,
+				B3EA95E6DDDDC7280BAEF306 /* THIRD-PARTY-NOTICES.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		9291E1F3A0EF0E65FC36DE42 /* Copy bundled web resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy bundled web resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Web/index.html",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nRESOURCES_DIR=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"${RESOURCES_DIR}\"\nrsync -a --delete \"${SRCROOT}/MarkdStage/Resources/Web\" \"${RESOURCES_DIR}/\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A4DC2A5B2BD47AA71D6D7840 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2BFE14C2281A6049866D5A74 /* AOperatorWindowTests.swift in Sources */,
+				D4E6B0ADAE74836CA608D613 /* CoreTests.swift in Sources */,
+				235A6531EE6714256F9962FA /* DeckWatcherTests.swift in Sources */,
+				0DB52B7D91899FCDAD9D1791 /* PresentationServerTests.swift in Sources */,
+				0212D48521AF2CB3B57246A3 /* SlideThumbnailProviderTests.swift in Sources */,
+				48698B35264DC86A7F02A867 /* SlideThumbnailSidebarTests.swift in Sources */,
+				6E0A18C3E716D29BD0FBA3F4 /* SlideWebViewTests.swift in Sources */,
+				AA300819199E5DDB1BEB4759 /* ZPDFExportTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FA84107E2D762705CD8A83B4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E6C3D8D3A2041DC0BE56F253 /* AppDelegate.swift in Sources */,
+				DC57768305BF4A0986B431D7 /* ApplicationMain.swift in Sources */,
+				2BE050911C496778BB809C17 /* AspectRatioView.swift in Sources */,
+				136BD065FBF482083D277D4E /* AudienceWindowController.swift in Sources */,
+				ED6232D062C6D7CC7F8E568D /* DeckDropView.swift in Sources */,
+				0D35E24AB3C8BD8AC05431F6 /* DeckLoader.swift in Sources */,
+				AD9C381026B9DB011EB96583 /* DeckModels.swift in Sources */,
+				4888895F221B7C0EC11B1105 /* DeckPDFRenderer.swift in Sources */,
+				C60575F71C5D56B45F997A7E /* DeckWatcher.swift in Sources */,
+				C3DBCDEAA7569C85CDFC43AD /* EmptyStateView.swift in Sources */,
+				85EB212AF21767AFC560B413 /* MainMenuBuilder.swift in Sources */,
+				AC5965B329602489081C9A6B /* MarkdownDeckParser.swift in Sources */,
+				C6CE79B7848C194021CF3678 /* PDFExportCoordinator.swift in Sources */,
+				3B33F9A12F5035541DFF2EA3 /* PDFSmokeRunner.swift in Sources */,
+				4E166A0EC95D0C1713F1C613 /* PathSecurity.swift in Sources */,
+				C798AE85F96C35C95C031BDB /* PresentationServer.swift in Sources */,
+				DBA876E8DAC9825FF130B99A /* PresentationSession.swift in Sources */,
+				180EA42BE6EBC3A46B39C1DC /* PresentationWindowController.swift in Sources */,
+				857CAFB9265D7E4CCD0465B2 /* RendererParityValidator.swift in Sources */,
+				E2595E06D9AB6548FD591131 /* SlideThumbnailProvider.swift in Sources */,
+				B2F70CCE4CF1F22412F7E8FB /* SlideThumbnailSidebar.swift in Sources */,
+				207DCDA561AB84377B07E1A6 /* SlideTitleDeriver.swift in Sources */,
+				D8E3E778D0759806A12406CA /* SlideWebView.swift in Sources */,
+				13586A7E806642429F70F335 /* SpeakerNotesExtractor.swift in Sources */,
+				575EA2AF288BE4AFBCDDDB5A /* ThemeService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7542713E01E614138E1B48F0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A7EBD2184228A84894A31E51 /* MarkdStage */;
+			targetProxy = 1A07F7D2AC4F5EC6AC228C1C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1994E1EE05B1FCD08FF7BA8A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MarkdStage/Resources/MarkdStage.Release.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MarkdStage/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.jp27.MarkdStage;
+				PRODUCT_NAME = MarkdStage;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		1B89762CFD8118F17F4B73BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.jp27.MarkdStageTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MarkdStage.app/Contents/MacOS/MarkdStage";
+			};
+			name = Debug;
+		};
+		97007FF0E4CB89362243410B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.jp27.MarkdStageTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MarkdStage.app/Contents/MacOS/MarkdStage";
+			};
+			name = Release;
+		};
+		A366519C992238CF5B310BA3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AE6C51436E88466EC09E7530 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MarkdStage/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.jp27.MarkdStage;
+				PRODUCT_NAME = MarkdStage;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		F052BB41A36AFD4773BAAE7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2F58BCFE3B1DF82DBBA78C6B /* Build configuration list for PBXNativeTarget "MarkdStageTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1B89762CFD8118F17F4B73BE /* Debug */,
+				97007FF0E4CB89362243410B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8544D42703835369AE149AFC /* Build configuration list for PBXNativeTarget "MarkdStage" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE6C51436E88466EC09E7530 /* Debug */,
+				1994E1EE05B1FCD08FF7BA8A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9F781C920AF12ECF55FDC0D7 /* Build configuration list for PBXProject "MarkdStage" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F052BB41A36AFD4773BAAE7E /* Debug */,
+				A366519C992238CF5B310BA3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A07A72A59474F308D657F047 /* Project object */;
+}
