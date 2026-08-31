@@ -158,11 +158,11 @@ Deck typography is separate. The bundled defaults use `typography.slide-heading`
 The operator window opens at 1280 × 800 pt and uses a full-size content view beneath a transparent titlebar. Its vertical structure is fixed-height header (58 pt), optional error bar (32 pt), flexible content, and fixed-height footer (54 pt). The minimum window width must accommodate the slide list plus the note and next-slide minimums without constraint conflicts.
 
 - **Header:** The filename sits at the leading edge with a 20 pt inset. Start/End Presentation and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Open and Close Markdown live only in the File menu. Both groups sit 8 pt below the titlebar's geometric center.
-- **Outer split:** A vertical `NSSplitView` places the full-height slide list at left and the workspace at right. The list starts near 230 pt and stays user-resizable between roughly 180–320 pt.
-- **Workspace split:** A horizontal `NSSplitView` gives the current slide approximately 62% of the available height and the lower context row the remainder.
+- **Outer split:** A vertical `NSSplitView` places the full-height slide list at left and the workspace at right. The list starts at 25% of the available width and stays user-resizable between roughly 180–420 pt.
+- **Workspace split:** A horizontal `NSSplitView` gives the current slide approximately 70% of the available height and the lower context row the remainder.
 - **Current slide:** The upper workspace pane fits the current 16:9 slide as large as possible without cropping, using black letterboxing only where the pane ratio requires it.
-- **Lower context row:** A vertical `NSSplitView` gives notes approximately 62% of the width and the next-slide pane the remainder. Notes have room for readable paragraphs; the next slide retains a useful 16:9 preview.
-- **Persistence:** All three split views use V2 autosave names. Initial divider positions apply only once and never overwrite a restored user layout.
+- **Lower context row:** A vertical `NSSplitView` gives notes approximately 67% of the width and the next-slide pane the remaining 33%. Notes have room for readable paragraphs; the next slide retains a useful 16:9 preview.
+- **Persistence:** All three split views use V3 autosave names. Initial divider positions apply only once and never overwrite a restored user layout.
 - **Footer:** Previous, a centered page counter, and Next occupy the visual center with 18 pt gaps. Live-reload, loading, update, export, and error status sits independently at the leading edge with an 18 pt inset.
 
 The native shell has no alternate compact reflow below its minimum size; users resize the persistent splits instead. The bundled web presenter view is separate and switches from a two-column preview/sidebar grid to one scrollable column at 800 CSS px.

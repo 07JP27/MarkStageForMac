@@ -182,7 +182,7 @@ final class SlideThumbnailSidebar: NSView,
         let viewportWidth = collectionView.enclosingScrollView?.contentSize.width
             ?? collectionView.bounds.width
         let itemWidth = max(
-            120,
+            1,
             viewportWidth - flowLayout.sectionInset.left
                 - flowLayout.sectionInset.right
         )

@@ -264,8 +264,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             header.heightAnchor.constraint(equalToConstant: 58),
             footer.heightAnchor.constraint(equalToConstant: 54)
         ])
-        root.layoutSubtreeIfNeeded()
-        installInitialSplitPositions()
         errorBar.isHidden = true
         errorLabel.tag = 7001
     }
@@ -331,7 +329,13 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     }
 
     private func makeContent() -> NSView {
-        let outerSplit = NSSplitView()
+        let outerAutosaveName = "MarkdStageOperatorOuterSplitV3"
+        let workspaceAutosaveName = "MarkdStageOperatorWorkspaceSplitV3"
+        let lowerAutosaveName = "MarkdStageOperatorLowerSplitV3"
+        let outerSplit = InitialProportionSplitView(
+            initialProportion: 0.25,
+            shouldApplyInitialPosition: !hasSavedSplitPosition(outerAutosaveName)
+        )
         outerSplit.isVertical = true
         outerSplit.dividerStyle = .paneSplitter
         outerSplit.delegate = self
@@ -379,27 +383,33 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         notesScroll.documentView = notesTextView
         let notesPane = titledPane(title: "SPEAKER NOTES", content: notesScroll)
 
-        let lowerSplit = NSSplitView()
+        let lowerSplit = InitialProportionSplitView(
+            initialProportion: 0.67,
+            shouldApplyInitialPosition: !hasSavedSplitPosition(lowerAutosaveName)
+        )
         lowerSplit.isVertical = true
         lowerSplit.dividerStyle = .paneSplitter
         lowerSplit.delegate = self
         lowerSplit.addArrangedSubview(notesPane)
         lowerSplit.addArrangedSubview(nextPane)
-        lowerSplit.autosaveName = "MarkdStageOperatorLowerSplitV2"
+        lowerSplit.autosaveName = lowerAutosaveName
         lowerSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 1)
 
-        let workspaceSplit = NSSplitView()
+        let workspaceSplit = InitialProportionSplitView(
+            initialProportion: 0.70,
+            shouldApplyInitialPosition: !hasSavedSplitPosition(workspaceAutosaveName)
+        )
         workspaceSplit.isVertical = false
         workspaceSplit.dividerStyle = .paneSplitter
         workspaceSplit.delegate = self
         workspaceSplit.addArrangedSubview(currentPane)
         workspaceSplit.addArrangedSubview(lowerSplit)
-        workspaceSplit.autosaveName = "MarkdStageOperatorWorkspaceSplitV2"
+        workspaceSplit.autosaveName = workspaceAutosaveName
         workspaceSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
 
         outerSplit.addArrangedSubview(slideListPane)
         outerSplit.addArrangedSubview(workspaceSplit)
-        outerSplit.autosaveName = "MarkdStageOperatorOuterSplitV2"
+        outerSplit.autosaveName = outerAutosaveName
         outerSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
         outerSplitView = outerSplit
         workspaceSplitView = workspaceSplit
@@ -407,31 +417,10 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         return outerSplit
     }
 
-    private func installInitialSplitPositions() {
-        guard let outer = outerSplitView,
-              let workspace = workspaceSplitView,
-              let lower = lowerSplitView else {
-            return
-        }
-        let defaults = UserDefaults.standard
-        let shouldSetOuter = defaults.object(
-            forKey: "NSSplitView Subview Frames MarkdStageOperatorOuterSplitV2"
-        ) == nil
-        let shouldSetWorkspace = defaults.object(
-            forKey: "NSSplitView Subview Frames MarkdStageOperatorWorkspaceSplitV2"
-        ) == nil
-        let shouldSetLower = defaults.object(
-            forKey: "NSSplitView Subview Frames MarkdStageOperatorLowerSplitV2"
-        ) == nil
-        if shouldSetOuter {
-            outer.setPosition(230, ofDividerAt: 0)
-        }
-        if shouldSetWorkspace {
-            workspace.setPosition(workspace.bounds.height * 0.62, ofDividerAt: 0)
-        }
-        if shouldSetLower {
-            lower.setPosition(lower.bounds.width * 0.62, ofDividerAt: 0)
-        }
+    private func hasSavedSplitPosition(_ autosaveName: String) -> Bool {
+        UserDefaults.standard.object(
+            forKey: "NSSplitView Subview Frames \(autosaveName)"
+        ) != nil
     }
 
     func splitView(
@@ -459,7 +448,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         if splitView === outerSplitView {
             return min(
                 proposedMaximumPosition,
-                min(320, splitView.bounds.width - 560 - splitView.dividerThickness)
+                min(420, splitView.bounds.width - 560 - splitView.dividerThickness)
             )
         }
         if splitView === workspaceSplitView {
@@ -727,5 +716,40 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     private var navigationKeysAreAvailable: Bool {
         guard window?.attachedSheet == nil else { return false }
         return !(NSApp.keyWindow?.firstResponder is NSTextView)
+    }
+}
+
+@MainActor
+private final class InitialProportionSplitView: NSSplitView {
+    private let initialProportion: CGFloat
+    private let shouldApplyInitialPosition: Bool
+    private var didApplyInitialPosition = false
+
+    init(
+        initialProportion: CGFloat,
+        shouldApplyInitialPosition: Bool
+    ) {
+        self.initialProportion = initialProportion
+        self.shouldApplyInitialPosition = shouldApplyInitialPosition
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func layout() {
+        super.layout()
+        guard !didApplyInitialPosition,
+              arrangedSubviews.count >= 2 else {
+            return
+        }
+        let availableThickness = isVertical ? bounds.width : bounds.height
+        guard availableThickness > dividerThickness else { return }
+        didApplyInitialPosition = true
+        if shouldApplyInitialPosition {
+            setPosition(availableThickness * initialProportion, ofDividerAt: 0)
+        }
     }
 }

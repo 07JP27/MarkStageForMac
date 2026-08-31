@@ -69,6 +69,31 @@ final class AOperatorWindowTests: XCTestCase {
             "SPEAKER NOTES",
             "NEXT SLIDE"
         ]))
+        let verticalSplits = splitViews.filter(\.isVertical)
+        let outerSplit = try XCTUnwrap(
+            verticalSplits.max(by: { $0.bounds.width < $1.bounds.width })
+        )
+        let lowerSplit = try XCTUnwrap(
+            verticalSplits.min(by: { $0.bounds.width < $1.bounds.width })
+        )
+        let workspaceSplit = try XCTUnwrap(
+            splitViews.first(where: { !$0.isVertical })
+        )
+        XCTAssertEqual(
+            firstPaneThickness(in: outerSplit) / outerSplit.bounds.width,
+            0.25,
+            accuracy: 0.03
+        )
+        XCTAssertEqual(
+            firstPaneThickness(in: workspaceSplit) / workspaceSplit.bounds.height,
+            0.70,
+            accuracy: 0.03
+        )
+        XCTAssertEqual(
+            firstPaneThickness(in: lowerSplit) / lowerSplit.bounds.width,
+            0.67,
+            accuracy: 0.03
+        )
         for splitView in splitViews {
             splitView.layoutSubtreeIfNeeded()
             let before = firstPaneThickness(in: splitView)
@@ -181,9 +206,9 @@ final class AOperatorWindowTests: XCTestCase {
 
     private nonisolated static func clearLayoutDefaults() {
         for key in [
-            "NSSplitView Subview Frames MarkdStageOperatorOuterSplitV2",
-            "NSSplitView Subview Frames MarkdStageOperatorWorkspaceSplitV2",
-            "NSSplitView Subview Frames MarkdStageOperatorLowerSplitV2"
+            "NSSplitView Subview Frames MarkdStageOperatorOuterSplitV3",
+            "NSSplitView Subview Frames MarkdStageOperatorWorkspaceSplitV3",
+            "NSSplitView Subview Frames MarkdStageOperatorLowerSplitV3"
         ] {
             UserDefaults.standard.removeObject(forKey: key)
         }
