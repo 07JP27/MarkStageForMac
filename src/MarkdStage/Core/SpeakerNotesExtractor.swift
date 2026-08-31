@@ -101,17 +101,19 @@ enum SpeakerNotesExtractor {
         .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func openedFence(in line: String) -> String? {
-        guard let expression = try? NSRegularExpression(
-            pattern: #"^([ \t]{0,3})(`{3,}|~{3,})[ \t]*([^\s`~]*)[ \t]*$"#
-        ), let match = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
-           let range = Range(match.range(at: 2), in: line) else {
-            return nil
-        }
-        return String(line[range])
+    static func openedFence(in line: String) -> String? {
+        let indentation = leadingWhitespaceCount(line)
+        guard indentation <= 3 else { return nil }
+        let content = line.dropFirst(indentation)
+        guard let marker = content.first, marker == "`" || marker == "~" else { return nil }
+        let count = content.prefix(while: { $0 == marker }).count
+        guard count >= 3 else { return nil }
+        let info = content.dropFirst(count)
+        guard marker != "`" || !info.contains("`") else { return nil }
+        return String(repeating: marker, count: count)
     }
 
-    private static func closesFence(_ line: String, fence: String) -> Bool {
+    static func closesFence(_ line: String, fence: String) -> Bool {
         let indentation = leadingWhitespaceCount(line)
         guard indentation <= 3 else { return false }
         let trimmed = line.dropFirst(indentation).trimmingCharacters(in: .whitespaces)

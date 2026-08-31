@@ -109,13 +109,14 @@ make clean
 
 ### Signing and notarization
 
-Copy `.env.example` to `.env` and set `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`, and `DEVELOPER_ID_APPLICATION` (the full certificate name reported by `security find-identity -v -p codesigning`). `.env` is ignored by Git.
+Copy `.env.example` to `.env` and set `DEVELOPER_ID_APPLICATION` to the full certificate name reported by `security find-identity -v -p codesigning`. `.env` is ignored by Git. Store your Apple notarization credentials in Keychain once (the command prompts securely for the Apple ID, team ID, and app-specific password):
 
 ```bash
-make notarize VERSION=0.1.0
+xcrun notarytool store-credentials MarkdStage
+make notarize VERSION=0.1.0 NOTARY_PROFILE=MarkdStage
 ```
 
-Notarization requires Apple Developer Program membership and an appropriate Developer ID signing setup.
+`NOTARY_PROFILE` defaults to `MarkdStage` and may also be set in `.env`. Notarization requires Apple Developer Program membership and an appropriate Developer ID signing setup.
 
 ## Security
 

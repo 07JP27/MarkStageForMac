@@ -109,13 +109,14 @@ make clean
 
 ### 署名と公証
 
-`.env.example` を `.env` にコピーし、`APPLE_ID`、`APPLE_TEAM_ID`、`APPLE_APP_PASSWORD`、`DEVELOPER_ID_APPLICATION`（`security find-identity -v -p codesigning` に表示される証明書名全体）を設定します。`.env` はGit対象外です。
+`.env.example` を `.env` にコピーし、`DEVELOPER_ID_APPLICATION` に `security find-identity -v -p codesigning` で表示される証明書名全体を設定します。`.env` はGit対象外です。Apple ID、チームID、App用パスワードは、次のコマンドで一度だけ安全に入力してキーチェーンへ保存します。
 
 ```bash
-make notarize VERSION=0.1.0
+xcrun notarytool store-credentials MarkdStage
+make notarize VERSION=0.1.0 NOTARY_PROFILE=MarkdStage
 ```
 
-公証にはApple Developer Programへの加入とDeveloper ID署名環境が必要です。
+`NOTARY_PROFILE` のデフォルト値は `MarkdStage` で、`.env` でも設定できます。公証にはApple Developer Programへの加入とDeveloper ID署名環境が必要です。
 
 ## セキュリティ
 

@@ -7,15 +7,15 @@ RELEASE_APP := $(DERIVED_DATA)/Build/Products/Release/MarkdStage.app
 VERSION ?= 0.1.0
 DMG_PATH := build/MarkdStage-v$(VERSION).dmg
 NOTARY_ZIP := build/MarkdStage-v$(VERSION).zip
+NOTARY_PROFILE ?= MarkdStage
 DESTINATION := platform=macOS
 MARKDSTAGE_TARGET ?= samples/demo.md
 CLI_CHECK_TARGET ?= samples/demo.md
 
 -include .env
-export APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD
 export DEVELOPER_ID_APPLICATION
 
-.PHONY: generate build test run run-cli launch-check cli-launch-check release notarize dmg clean
+.PHONY: generate build test run run-cli launch-check cli-launch-check pdf-export-check release notarize dmg clean
 
 generate:
 	cd $(PROJECT_DIR) && xcodegen generate
@@ -39,13 +39,14 @@ launch-check: build
 cli-launch-check: build
 	sh scripts/cli-launch-smoke-test.sh "$(DEBUG_APP)" "$(CLI_CHECK_TARGET)"
 
+pdf-export-check: build
+	sh scripts/pdf-export-smoke-test.sh "$(DEBUG_APP)"
+
 release: generate
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release -destination '$(DESTINATION)' -derivedDataPath $(DERIVED_DATA) MARKETING_VERSION="$(VERSION)" build
 
 notarize: release
-	@test -n "$(APPLE_ID)" || (echo "APPLE_ID is required" && exit 1)
-	@test -n "$(APPLE_TEAM_ID)" || (echo "APPLE_TEAM_ID is required" && exit 1)
-	@test -n "$(APPLE_APP_PASSWORD)" || (echo "APPLE_APP_PASSWORD is required" && exit 1)
+	@test -n "$(NOTARY_PROFILE)" || (echo "NOTARY_PROFILE is required" && exit 1)
 	@test -n "$(DEVELOPER_ID_APPLICATION)" || (echo "DEVELOPER_ID_APPLICATION is required" && exit 1)
 	mkdir -p build
 	codesign --force --deep --options runtime --timestamp \
@@ -53,7 +54,7 @@ notarize: release
 		--sign "$(DEVELOPER_ID_APPLICATION)" "$(RELEASE_APP)"
 	codesign --verify --deep --strict "$(RELEASE_APP)"
 	ditto -c -k --keepParent "$(RELEASE_APP)" "$(NOTARY_ZIP)"
-	xcrun notarytool submit "$(NOTARY_ZIP)" --apple-id "$(APPLE_ID)" --team-id "$(APPLE_TEAM_ID)" --password "$(APPLE_APP_PASSWORD)" --wait
+	xcrun notarytool submit "$(NOTARY_ZIP)" --keychain-profile "$(NOTARY_PROFILE)" --wait
 	xcrun stapler staple "$(RELEASE_APP)"
 
 dmg: release

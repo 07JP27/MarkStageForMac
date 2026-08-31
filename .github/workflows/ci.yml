@@ -50,3 +50,6 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Live PDF renderer smoke
+        run: sh scripts/pdf-export-smoke-test.sh build/Build/Products/Debug/MarkdStage.app

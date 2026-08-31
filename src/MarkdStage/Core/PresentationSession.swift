@@ -4,6 +4,7 @@ final class PresentationSession: @unchecked Sendable {
     typealias Observer = @Sendable (PresentationSnapshot) -> Void
 
     private let lock = NSLock()
+    private let notificationQueue = DispatchQueue(label: "dev.jp27.MarkdStage.session-observers")
     private var snapshot = PresentationSnapshot(
         slides: [],
         index: 0,
@@ -26,7 +27,7 @@ final class PresentationSession: @unchecked Sendable {
         workspaceRoot: URL,
         theme: ThemeState? = nil
     ) -> PresentationSnapshot {
-        let result = lock.withLock {
+        lock.withLock {
             let index = document.slides.isEmpty
                 ? 0
                 : min(max(snapshot.index, 0), document.slides.count - 1)
@@ -39,15 +40,14 @@ final class PresentationSession: @unchecked Sendable {
                 workspaceRoot: workspaceRoot,
                 theme: theme ?? ThemeState(name: document.theme)
             )
-            return (snapshot, Array(observers.values))
+            enqueueNotification(snapshot, observers: Array(observers.values))
+            return snapshot
         }
-        result.1.forEach { $0(result.0) }
-        return result.0
     }
 
     @discardableResult
     func clear() -> PresentationSnapshot {
-        let result = lock.withLock {
+        lock.withLock {
             snapshot = PresentationSnapshot(
                 slides: [],
                 index: 0,
@@ -57,37 +57,30 @@ final class PresentationSession: @unchecked Sendable {
                 workspaceRoot: nil,
                 theme: ThemeState(name: "dark")
             )
-            return (snapshot, Array(observers.values))
+            enqueueNotification(snapshot, observers: Array(observers.values))
+            return snapshot
         }
-        result.1.forEach { $0(result.0) }
-        return result.0
     }
 
     @discardableResult
     func navigate(by delta: Int) -> Bool {
-        navigate(to: currentSnapshot().index + delta)
+        lock.withLock {
+            guard !snapshot.slides.isEmpty else { return false }
+            let (candidate, overflow) = snapshot.index.addingReportingOverflow(delta)
+            let target = overflow
+                ? (delta > 0 ? snapshot.slides.count - 1 : 0)
+                : min(max(candidate, 0), snapshot.slides.count - 1)
+            return navigateLocked(to: target)
+        }
     }
 
     @discardableResult
     func navigate(to index: Int) -> Bool {
-        let result: (PresentationSnapshot, [Observer])? = lock.withLock {
-            guard !snapshot.slides.isEmpty else { return nil }
+        lock.withLock {
+            guard !snapshot.slides.isEmpty else { return false }
             let target = min(max(index, 0), snapshot.slides.count - 1)
-            guard target != snapshot.index else { return nil }
-            snapshot = PresentationSnapshot(
-                slides: snapshot.slides,
-                index: target,
-                version: snapshot.version + 1,
-                deckVersion: snapshot.deckVersion,
-                sourceURL: snapshot.sourceURL,
-                workspaceRoot: snapshot.workspaceRoot,
-                theme: snapshot.theme
-            )
-            return (snapshot, Array(observers.values))
+            return navigateLocked(to: target)
         }
-        guard let result else { return false }
-        result.1.forEach { $0(result.0) }
-        return true
     }
 
     func addObserver(_ observer: @escaping Observer) -> UUID {
@@ -101,6 +94,30 @@ final class PresentationSession: @unchecked Sendable {
     func removeObserver(_ id: UUID) {
         _ = lock.withLock {
             observers.removeValue(forKey: id)
+        }
+    }
+
+    private func navigateLocked(to index: Int) -> Bool {
+        guard index != snapshot.index else { return false }
+        snapshot = PresentationSnapshot(
+            slides: snapshot.slides,
+            index: index,
+            version: snapshot.version + 1,
+            deckVersion: snapshot.deckVersion,
+            sourceURL: snapshot.sourceURL,
+            workspaceRoot: snapshot.workspaceRoot,
+            theme: snapshot.theme
+        )
+        enqueueNotification(snapshot, observers: Array(observers.values))
+        return true
+    }
+
+    private func enqueueNotification(
+        _ snapshot: PresentationSnapshot,
+        observers: [Observer]
+    ) {
+        notificationQueue.async {
+            observers.forEach { $0(snapshot) }
         }
     }
 }

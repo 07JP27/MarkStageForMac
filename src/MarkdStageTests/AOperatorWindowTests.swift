@@ -118,15 +118,21 @@ final class AOperatorWindowTests: XCTestCase {
         XCTAssertEqual(sidebar.currentSelection, 0)
 
         sidebar.onSelectIndex?(2)
-        await Task.yield()
+        let selectionUpdated = await waitUntil {
+            sidebar.currentSelection == 2
+        }
 
         XCTAssertEqual(session.currentSnapshot().index, 2)
+        XCTAssertTrue(selectionUpdated)
         XCTAssertEqual(sidebar.currentSelection, 2)
 
         controller.closeDocument(nil)
-        await Task.yield()
+        let closeApplied = await waitUntil {
+            sidebar.itemCount == 0
+        }
 
         XCTAssertEqual(session.currentSnapshot().total, 0)
+        XCTAssertTrue(closeApplied)
         XCTAssertEqual(controller.window?.title, "MarkdStage")
         XCTAssertNotNil(controller.window)
         XCTAssertTrue(allButtons.contains(where: {
@@ -190,6 +196,18 @@ final class AOperatorWindowTests: XCTestCase {
     private func labels(in view: NSView) -> [String] {
         let own = (view as? NSTextField).map { [$0.stringValue] } ?? []
         return own + view.subviews.flatMap(labels)
+    }
+
+    private func waitUntil(
+        timeout: Duration = .seconds(1),
+        condition: () -> Bool
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while !condition(), clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
     }
 
     private func descendants(in view: NSView) -> [NSView] {

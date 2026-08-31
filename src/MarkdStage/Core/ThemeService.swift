@@ -87,6 +87,7 @@ struct ThemeService: Sendable {
             let value = item[item.index(after: separator)...].trimmingCharacters(in: .whitespaces)
             guard name.range(of: #"^--[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil,
                   !value.isEmpty,
+                  value.rangeOfCharacter(from: CharacterSet(charactersIn: "{}")) == nil,
                   value.range(
                     of: #"</?style\b|@import\b|expression\s*\(|javascript\s*:|url\s*\("#,
                     options: [.regularExpression, .caseInsensitive]

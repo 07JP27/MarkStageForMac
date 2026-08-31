@@ -8,6 +8,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     private let loader = DeckLoader()
     private let watcher = DeckWatcher()
     private var observerID: UUID?
+    private var lastAppliedSnapshotVersion: Int64 = -1
     private var currentURL: URL?
     private var loadGeneration = 0
     private var audienceWindowController: AudienceWindowController?
@@ -614,6 +615,8 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     }
 
     private func apply(_ snapshot: PresentationSnapshot) {
+        guard snapshot.version > lastAppliedSnapshotVersion else { return }
+        lastAppliedSnapshotVersion = snapshot.version
         let loaded = snapshot.total > 0
         emptyState.isHidden = loaded
         previousButton.isEnabled = loaded && snapshot.index > 0

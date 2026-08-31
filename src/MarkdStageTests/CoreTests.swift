@@ -116,6 +116,25 @@ final class CoreTests: XCTestCase {
             ),
             "Linkedtitle and image tag"
         )
+        XCTAssertEqual(
+            SlideTitleDeriver.derive("# Markdown,<br>ready for the **stage**."),
+            "Markdown, ready for the stage."
+        )
+        XCTAssertEqual(
+            SlideTitleDeriver.derive(
+                """
+                ``` swift linenums
+                # Not the slide title
+                ```
+                ## Real <em>title</em> &amp; details
+                """
+            ),
+            "Real title & details"
+        )
+        XCTAssertEqual(
+            SlideTitleDeriver.derive("<p>Plain <strong>body</strong><br />line</p>"),
+            "Plain body line"
+        )
     }
 
     func testSessionPreservesPositionAndClampsNavigation() {
@@ -136,6 +155,53 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(snapshot.index, 1)
         XCTAssertEqual(snapshot.currentMarkdown, "y")
         XCTAssertEqual(snapshot.deckVersion, 2)
+    }
+
+    func testSessionDeltaNavigationHandlesIntegerBounds() {
+        let session = PresentationSession()
+        let root = URL(fileURLWithPath: "/tmp")
+        _ = session.load(
+            DeckDocument(slides: ["a", "b", "c"], metadata: [:], theme: "dark", themeFile: ""),
+            sourceURL: root.appendingPathComponent("a.md"),
+            workspaceRoot: root
+        )
+
+        XCTAssertTrue(session.navigate(by: Int.max))
+        XCTAssertEqual(session.currentSnapshot().index, 2)
+        XCTAssertTrue(session.navigate(by: Int.min))
+        XCTAssertEqual(session.currentSnapshot().index, 0)
+    }
+
+    func testSessionDeliversConcurrentNotificationsInVersionOrder() {
+        let session = PresentationSession()
+        let root = URL(fileURLWithPath: "/tmp")
+        let terminalNotification = expectation(description: "Terminal snapshot delivered")
+        let recorder = SnapshotVersionRecorder(terminalExpectation: terminalNotification)
+        let observerID = session.addObserver { snapshot in
+            recorder.append(snapshot)
+        }
+        defer { session.removeObserver(observerID) }
+
+        _ = session.load(
+            DeckDocument(
+                slides: (0..<20).map(String.init),
+                metadata: [:],
+                theme: "dark",
+                themeFile: ""
+            ),
+            sourceURL: root.appendingPathComponent("a.md"),
+            workspaceRoot: root
+        )
+        DispatchQueue.concurrentPerform(iterations: 100) { index in
+            _ = session.navigate(to: index % 20)
+        }
+        let terminal = session.clear()
+
+        wait(for: [terminalNotification], timeout: 2)
+        let versions = recorder.values()
+        XCTAssertEqual(versions, versions.sorted())
+        XCTAssertEqual(Set(versions).count, versions.count)
+        XCTAssertEqual(versions.last, terminal.version)
     }
 
     func testSessionClearRemovesDeckAndSourceState() {
@@ -222,7 +288,9 @@ final class CoreTests: XCTestCase {
             "@import 'theme.css'",
             "javascript:alert(1)",
             "expression(alert(1))",
-            "</style><script>alert(1)</script>"
+            "</style><script>alert(1)</script>",
+            "red} body { display: none",
+            "red { color: transparent"
         ] {
             try ":root { --unsafe: \(unsafeValue); }".write(
                 to: themeURL,
@@ -250,6 +318,16 @@ final class CoreTests: XCTestCase {
             withExtension: "txt",
             subdirectory: "LICENSES"
         ))
+        for license in ["marked", "purify", "highlight", "mermaid"] {
+            XCTAssertNotNil(
+                bundle.url(
+                    forResource: license,
+                    withExtension: "LICENSE",
+                    subdirectory: "Web/vendor"
+                ),
+                "\(license).LICENSE"
+            )
+        }
         let mermaidURL = try XCTUnwrap(bundle.url(
             forResource: "mermaid.min",
             withExtension: "js",
@@ -257,10 +335,28 @@ final class CoreTests: XCTestCase {
         ))
         let mermaid = try String(contentsOf: mermaidURL, encoding: .utf8)
         XCTAssertTrue(mermaid.contains(#"version:"11.16.1""#))
-        XCTAssertNotNil(bundle.url(
-            forResource: "mermaid",
-            withExtension: "LICENSE",
-            subdirectory: "Web/vendor"
-        ))
+    }
+}
+
+private final class SnapshotVersionRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private let terminalExpectation: XCTestExpectation
+    private var recorded: [Int64] = []
+
+    init(terminalExpectation: XCTestExpectation) {
+        self.terminalExpectation = terminalExpectation
+    }
+
+    func append(_ snapshot: PresentationSnapshot) {
+        lock.withLock {
+            recorded.append(snapshot.version)
+            if snapshot.slides.isEmpty, snapshot.version > 1 {
+                terminalExpectation.fulfill()
+            }
+        }
+    }
+
+    func values() -> [Int64] {
+        lock.withLock { recorded }
     }
 }
