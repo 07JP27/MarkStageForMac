@@ -19,7 +19,7 @@
 
 - Open `.md` / `.markdown` from Finder, the Open panel, drag and drop, or a command-line path
 - Close the current deck and return to the empty state without quitting the app
-- Current slide, next slide, speaker notes, page counter, and slide list in one operator window
+- Scrollable visual thumbnails, current slide, next slide, speaker notes, and page counter in one operator window
 - Separate audience window with native macOS full screen and secondary-display placement
 - Live reload after atomic or in-place Markdown saves while preserving the current position
 - GFM, highlighted code, Mermaid, Architecture DSL, local images, speaker notes, and custom themes
@@ -46,7 +46,7 @@ Developer ID signing and notarization are supported for maintainer builds.
 
 1. Open MarkdStage.
 2. Choose **File → Open…** or drag a Markdown deck into the window.
-3. Navigate with the controls, Space, Page Up/Down, or Left/Right Arrow.
+3. Click a thumbnail or navigate with the controls, Space, Page Up/Down, or Left/Right Arrow.
 4. Choose **Presentation → Start or End Presentation** to open the audience window.
 5. Move the audience window to the target display and choose **View → Toggle Audience Full Screen**.
 6. Choose **File → Close Markdown** to unload the deck.
@@ -78,7 +78,6 @@ See [`samples/demo.md`](samples/demo.md) for a working deck.
 | Open Markdown | `⌘O` |
 | Previous / next slide | `←` / `→`, `Page Up` / `Page Down`, `Space` for next |
 | First / last slide | `⌘←` / `⌘→` |
-| Slide list | `⌘L` |
 | Start / end presentation | `⌘Return` |
 | Audience full screen | `⌃⌘F` |
 | Export PDF | `⇧⌘E` |

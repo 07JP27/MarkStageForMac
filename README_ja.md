@@ -19,7 +19,7 @@
 
 - Finder、Openパネル、ドラッグ&ドロップ、コマンドラインから `.md` / `.markdown` を開く
 - アプリを終了せず、現在のデッキを閉じて空状態へ戻る
-- 現在のスライド、次のスライド、スピーカーノート、ページ番号、スライド一覧
+- スクロール可能な全スライドのサムネイル、現在のスライド、次のスライド、スピーカーノート、ページ番号
 - 別ディスプレイへ移動できるオーディエンスウィンドウとmacOSネイティブフルスクリーン
 - 現在位置を保ったまま、Markdown保存を検知してライブリロード
 - GFM、コードハイライト、Mermaid、Architecture DSL、ローカル画像、ノート、カスタムテーマ
@@ -46,7 +46,7 @@ xattr -dr com.apple.quarantine /Applications/MarkdStage.app
 
 1. MarkdStageを起動します。
 2. **File → Open…** を選ぶか、Markdownデッキをウィンドウへドロップします。
-3. ボタン、Space、Page Up/Down、左右矢印で移動します。
+3. サムネイルをクリックするか、ボタン、Space、Page Up/Down、左右矢印で移動します。
 4. **Presentation → Start or End Presentation** でオーディエンスウィンドウを開きます。
 5. 対象ディスプレイへ移動し、**View → Toggle Audience Full Screen** を選びます。
 6. **File → Close Markdown** でデッキを閉じます。
@@ -78,7 +78,6 @@ theme: dark
 | Markdownを開く | `⌘O` |
 | 前 / 次のスライド | `←` / `→`、`Page Up` / `Page Down`、次へは `Space` |
 | 先頭 / 最後 | `⌘←` / `⌘→` |
-| スライド一覧 | `⌘L` |
 | プレゼンテーション開始 / 終了 | `⌘Return` |
 | オーディエンスをフルスクリーン | `⌃⌘F` |
 | PDF書き出し | `⇧⌘E` |

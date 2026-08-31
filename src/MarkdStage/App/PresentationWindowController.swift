@@ -23,14 +23,22 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     private let nextPlaceholder = NSTextField(labelWithString: "There is no next slide")
     private let previousButton = NSButton()
     private let nextButton = NSButton()
-    private let overviewButton = NSButton()
+    private let thumbnailSidebar = SlideThumbnailSidebar()
     private let presentButton = NSButton()
     private let exportButton = NSButton()
     private let liveStatusLabel = NSTextField(labelWithString: "Open a deck to begin")
-    private var overviewTitles: [String] = []
-    private var currentDeckVersion: Int64 = -1
+    private var thumbnailProvider: (any SlideThumbnailProviding)?
+    private var thumbnailDeckVersion: Int64 = -1
+    private var thumbnailGenerationInProgress = false
+    private weak var outerSplitView: NSSplitView?
+    private weak var workspaceSplitView: NSSplitView?
+    private weak var lowerSplitView: NSSplitView?
 
-    init(session: PresentationSession, server: PresentationServer) {
+    init(
+        session: PresentationSession,
+        server: PresentationServer,
+        thumbnailProvider: (any SlideThumbnailProviding)? = nil
+    ) {
         self.session = session
         self.server = server
         let baseURL = server.baseURL!
@@ -50,10 +58,17 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         window.center()
         super.init(window: window)
         window.delegate = self
+        self.thumbnailProvider = thumbnailProvider ?? SlideThumbnailProvider(
+            parentWindow: window,
+            baseURL: baseURL
+        )
         setupInterface()
         loadRenderer()
 
         emptyState.onOpen = { [weak self] in self?.openDocument(nil) }
+        thumbnailSidebar.onSelectIndex = { [weak self] index in
+            self?.session.navigate(to: index)
+        }
         (window.contentView as? DeckDropView)?.onDeckDropped = { [weak self] url in
             self?.loadDeck(at: url, startWatching: true)
         }
@@ -132,28 +147,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         }
     }
 
-    @objc func showSlideList(_ sender: Any?) {
-        let snapshot = session.currentSnapshot()
-        guard snapshot.total > 0, let window else { return }
-
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 440, height: 30))
-        for (index, title) in overviewTitles.enumerated() {
-            popup.addItem(withTitle: "\(index + 1)   \(title)")
-        }
-        popup.selectItem(at: snapshot.index)
-
-        let alert = NSAlert()
-        alert.messageText = "Slide List"
-        alert.informativeText = "Choose the slide to show."
-        alert.accessoryView = popup
-        alert.addButton(withTitle: "Go to Slide")
-        alert.addButton(withTitle: "Cancel")
-        alert.beginSheetModal(for: window) { [weak self] response in
-            guard response == .alertFirstButtonReturn else { return }
-            self?.session.navigate(to: popup.indexOfSelectedItem)
-        }
-    }
-
     @objc func togglePresentation(_ sender: Any?) {
         if audienceWindowController != nil {
             closeAudienceWindow()
@@ -178,9 +171,11 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     }
 
     @objc func exportPDF(_ sender: Any?) {
-        guard session.currentSnapshot().total > 0,
+        let snapshot = session.currentSnapshot()
+        guard snapshot.total > 0,
               let window,
               let baseURL = server.baseURL,
+              !thumbnailGenerationInProgress,
               exportCoordinator == nil else {
             NSSound.beep()
             return
@@ -189,6 +184,9 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         let coordinator = PDFExportCoordinator(
             parentWindow: window,
             baseURL: baseURL,
+            preparedDocument: thumbnailProvider?.cachedDocument(
+                deckVersion: snapshot.deckVersion
+            ),
             onCompletion: { [weak self] in
                 self?.exportCoordinator = nil
             }
@@ -210,10 +208,12 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         case #selector(nextSlide(_:)), #selector(lastSlide(_:)):
             guard navigationKeysAreAvailable else { return false }
             return snapshot.hasNext
-        case #selector(showSlideList(_:)), #selector(togglePresentation(_:)):
+        case #selector(togglePresentation(_:)):
             return snapshot.total > 0
         case #selector(exportPDF(_:)):
-            return snapshot.total > 0 && exportCoordinator == nil
+            return snapshot.total > 0
+                && !thumbnailGenerationInProgress
+                && exportCoordinator == nil
         case #selector(toggleAudienceFullScreen(_:)):
             return audienceWindowController != nil
         default:
@@ -223,6 +223,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
 
     func windowWillClose(_ notification: Notification) {
         watcher.stop()
+        thumbnailProvider?.shutdown()
         audienceWindowController?.close()
         if let observerID {
             session.removeObserver(observerID)
@@ -245,8 +246,13 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         let stack = NSStackView(views: [header, errorBar, content, footer])
         stack.orientation = .vertical
         stack.alignment = .width
+        stack.distribution = .fill
         stack.spacing = 0
         stack.translatesAutoresizingMaskIntoConstraints = false
+        content.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        content.setContentHuggingPriority(.defaultLow, for: .vertical)
+        content.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        content.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         root.addSubview(stack)
 
         NSLayoutConstraint.activate([
@@ -254,9 +260,12 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             stack.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             stack.topAnchor.constraint(equalTo: root.topAnchor),
             stack.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            content.widthAnchor.constraint(equalTo: root.widthAnchor),
             header.heightAnchor.constraint(equalToConstant: 58),
             footer.heightAnchor.constraint(equalToConstant: 54)
         ])
+        root.layoutSubtreeIfNeeded()
+        installInitialSplitPositions()
         errorBar.isHidden = true
         errorLabel.tag = 7001
     }
@@ -267,12 +276,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         header.blendingMode = .withinWindow
         header.state = .active
 
-        configure(
-            overviewButton,
-            title: "Slide List",
-            symbol: "list.number",
-            action: #selector(showSlideList(_:))
-        )
         configure(
             presentButton,
             title: "Start Presentation",
@@ -291,7 +294,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
         fileNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let controls = NSStackView(views: [overviewButton, presentButton, exportButton])
+        let controls = NSStackView(views: [presentButton, exportButton])
         controls.orientation = .horizontal
         controls.spacing = 8
         controls.translatesAutoresizingMaskIntoConstraints = false
@@ -328,31 +331,36 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     }
 
     private func makeContent() -> NSView {
-        let splitView = NSSplitView()
-        splitView.isVertical = true
-        splitView.dividerStyle = .thin
-        splitView.autosaveName = "MarkdStageOperatorSplit"
+        let outerSplit = NSSplitView()
+        outerSplit.isVertical = true
+        outerSplit.dividerStyle = .paneSplitter
 
-        let currentShell = paneShell()
+        let slideListPane = titledPane(title: "SLIDES", content: thumbnailSidebar)
+        slideListPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
+        slideListPane.widthAnchor.constraint(lessThanOrEqualToConstant: 320).isActive = true
+
+        let currentContainer = NSView()
         let currentAspect = AspectRatioView(contentView: currentSlideView)
         currentAspect.translatesAutoresizingMaskIntoConstraints = false
         emptyState.translatesAutoresizingMaskIntoConstraints = false
-        currentShell.addSubview(currentAspect)
-        currentShell.addSubview(emptyState)
+        currentContainer.addSubview(currentAspect)
+        currentContainer.addSubview(emptyState)
         NSLayoutConstraint.activate([
-            currentAspect.leadingAnchor.constraint(equalTo: currentShell.leadingAnchor, constant: 16),
-            currentAspect.trailingAnchor.constraint(equalTo: currentShell.trailingAnchor, constant: -16),
-            currentAspect.topAnchor.constraint(equalTo: currentShell.topAnchor, constant: 16),
-            currentAspect.bottomAnchor.constraint(equalTo: currentShell.bottomAnchor, constant: -16),
-            emptyState.leadingAnchor.constraint(equalTo: currentShell.leadingAnchor, constant: 16),
-            emptyState.trailingAnchor.constraint(equalTo: currentShell.trailingAnchor, constant: -16),
-            emptyState.topAnchor.constraint(equalTo: currentShell.topAnchor, constant: 16),
-            emptyState.bottomAnchor.constraint(equalTo: currentShell.bottomAnchor, constant: -16),
-            currentShell.widthAnchor.constraint(greaterThanOrEqualToConstant: 560)
+            currentAspect.leadingAnchor.constraint(equalTo: currentContainer.leadingAnchor),
+            currentAspect.trailingAnchor.constraint(equalTo: currentContainer.trailingAnchor),
+            currentAspect.topAnchor.constraint(equalTo: currentContainer.topAnchor),
+            currentAspect.bottomAnchor.constraint(equalTo: currentContainer.bottomAnchor),
+            emptyState.leadingAnchor.constraint(equalTo: currentContainer.leadingAnchor),
+            emptyState.trailingAnchor.constraint(equalTo: currentContainer.trailingAnchor),
+            emptyState.topAnchor.constraint(equalTo: currentContainer.topAnchor),
+            emptyState.bottomAnchor.constraint(equalTo: currentContainer.bottomAnchor)
         ])
+        let currentPane = titledPane(title: "CURRENT SLIDE", content: currentContainer)
+        currentPane.heightAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
 
         let nextAspect = AspectRatioView(contentView: nextSlideView)
         let nextPane = titledPane(title: "NEXT SLIDE", content: nextAspect)
+        nextPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
         nextPlaceholder.textColor = .secondaryLabelColor
         nextPlaceholder.alignment = .center
         nextPlaceholder.translatesAutoresizingMaskIntoConstraints = false
@@ -373,22 +381,60 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         notesScroll.autohidesScrollers = true
         notesScroll.documentView = notesTextView
         let notesPane = titledPane(title: "SPEAKER NOTES", content: notesScroll)
+        notesPane.widthAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
 
-        let side = NSStackView(views: [nextPane, notesPane])
-        side.orientation = .vertical
-        side.alignment = .width
-        side.distribution = .fillEqually
-        side.spacing = 12
-        side.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
-        side.widthAnchor.constraint(greaterThanOrEqualToConstant: 320).isActive = true
+        let lowerSplit = NSSplitView()
+        lowerSplit.isVertical = true
+        lowerSplit.dividerStyle = .paneSplitter
+        lowerSplit.addArrangedSubview(notesPane)
+        lowerSplit.addArrangedSubview(nextPane)
+        lowerSplit.autosaveName = "MarkdStageOperatorLowerSplitV2"
+        lowerSplit.heightAnchor.constraint(greaterThanOrEqualToConstant: 200).isActive = true
+        lowerSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 1)
 
-        splitView.addArrangedSubview(currentShell)
-        splitView.addArrangedSubview(side)
-        splitView.setHoldingPriority(.defaultHigh, forSubviewAt: 1)
-        DispatchQueue.main.async {
-            splitView.setPosition(850, ofDividerAt: 0)
+        let workspaceSplit = NSSplitView()
+        workspaceSplit.isVertical = false
+        workspaceSplit.dividerStyle = .paneSplitter
+        workspaceSplit.addArrangedSubview(currentPane)
+        workspaceSplit.addArrangedSubview(lowerSplit)
+        workspaceSplit.autosaveName = "MarkdStageOperatorWorkspaceSplitV2"
+        workspaceSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
+
+        outerSplit.addArrangedSubview(slideListPane)
+        outerSplit.addArrangedSubview(workspaceSplit)
+        outerSplit.autosaveName = "MarkdStageOperatorOuterSplitV2"
+        outerSplit.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
+        outerSplitView = outerSplit
+        workspaceSplitView = workspaceSplit
+        lowerSplitView = lowerSplit
+        return outerSplit
+    }
+
+    private func installInitialSplitPositions() {
+        guard let outer = outerSplitView,
+              let workspace = workspaceSplitView,
+              let lower = lowerSplitView else {
+            return
         }
-        return splitView
+        let defaults = UserDefaults.standard
+        let shouldSetOuter = defaults.object(
+            forKey: "NSSplitView Subview Frames MarkdStageOperatorOuterSplitV2"
+        ) == nil
+        let shouldSetWorkspace = defaults.object(
+            forKey: "NSSplitView Subview Frames MarkdStageOperatorWorkspaceSplitV2"
+        ) == nil
+        let shouldSetLower = defaults.object(
+            forKey: "NSSplitView Subview Frames MarkdStageOperatorLowerSplitV2"
+        ) == nil
+        if shouldSetOuter {
+            outer.setPosition(230, ofDividerAt: 0)
+        }
+        if shouldSetWorkspace {
+            workspace.setPosition(workspace.bounds.height * 0.62, ofDividerAt: 0)
+        }
+        if shouldSetLower {
+            lower.setPosition(lower.bounds.width * 0.62, ofDividerAt: 0)
+        }
     }
 
     private func makeFooter() -> NSView {
@@ -539,20 +585,70 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         emptyState.isHidden = loaded
         previousButton.isEnabled = loaded && snapshot.index > 0
         nextButton.isEnabled = snapshot.hasNext
-        overviewButton.isEnabled = loaded
         presentButton.isEnabled = loaded
-        exportButton.isEnabled = loaded
+        exportButton.isEnabled = loaded && !thumbnailGenerationInProgress
         pageCounter.stringValue = loaded ? "\(snapshot.index + 1) / \(snapshot.total)" : "0 / 0"
         let notes = SpeakerNotesExtractor.extract(snapshot.currentMarkdown)
         notesTextView.string = notes.isEmpty ? "No speaker notes" : notes
         notesTextView.textColor = notes.isEmpty ? .secondaryLabelColor : .labelColor
         nextPlaceholder.isHidden = snapshot.hasNext
         nextSlideView.isHidden = !snapshot.hasNext
-        if snapshot.deckVersion != currentDeckVersion {
-            currentDeckVersion = snapshot.deckVersion
-            overviewTitles = snapshot.slides.map(SlideTitleDeriver.derive)
-        }
+        updateThumbnailSidebar(with: snapshot)
         updatePresenterButton()
+    }
+
+    private func updateThumbnailSidebar(with snapshot: PresentationSnapshot) {
+        guard snapshot.total > 0 else {
+            thumbnailProvider?.shutdown()
+            thumbnailSidebar.clear()
+            thumbnailDeckVersion = snapshot.deckVersion
+            thumbnailGenerationInProgress = false
+            exportButton.isEnabled = false
+            return
+        }
+
+        let selectionChanged = thumbnailSidebar.currentSelection != snapshot.index
+        if snapshot.deckVersion != thumbnailDeckVersion {
+            thumbnailDeckVersion = snapshot.deckVersion
+            thumbnailGenerationInProgress = true
+            exportButton.isEnabled = false
+            let titles = snapshot.slides.map(SlideTitleDeriver.derive)
+            thumbnailSidebar.updateSlides(
+                titles: titles,
+                deckVersion: snapshot.deckVersion
+            )
+            thumbnailSidebar.select(index: snapshot.index, scrollToVisible: true)
+            thumbnailProvider?.render(
+                deckVersion: snapshot.deckVersion,
+                slideCount: snapshot.total,
+                onThumbnail: { [weak self] deckVersion, index, image in
+                    self?.thumbnailSidebar.setThumbnail(
+                        image,
+                        at: index,
+                        deckVersion: deckVersion
+                    )
+                },
+                completion: { [weak self] deckVersion, result in
+                    guard let self,
+                          self.thumbnailDeckVersion == deckVersion else {
+                        return
+                    }
+                    self.thumbnailGenerationInProgress = false
+                    self.exportButton.isEnabled =
+                        self.session.currentSnapshot().total > 0
+                    if case let .failure(error) = result {
+                        self.liveStatusLabel.stringValue =
+                            "Slide thumbnails unavailable: \(error.localizedDescription)"
+                    }
+                }
+            )
+            return
+        }
+
+        thumbnailSidebar.select(
+            index: snapshot.index,
+            scrollToVisible: selectionChanged
+        )
     }
 
     private func updatePresenterButton() {

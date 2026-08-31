@@ -8,10 +8,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var pendingDeckURLs: [URL] = []
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        guard !Self.isRunningUnitTests else { return }
         NSApp.mainMenu = MainMenuBuilder.make(delegate: self)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !Self.isRunningUnitTests else { return }
         do {
             let server = try PresentationServer(session: session)
             try server.start()
@@ -50,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        !Self.isRunningUnitTests
     }
 
     @objc func openDocument(_ sender: Any?) {
@@ -75,10 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func lastSlide(_ sender: Any?) {
         mainWindowController?.lastSlide(sender)
-    }
-
-    @objc func showSlideList(_ sender: Any?) {
-        mainWindowController?.showSlideList(sender)
     }
 
     @objc func togglePresentation(_ sender: Any?) {
@@ -125,5 +123,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private static func isDeckURL(_ url: URL) -> Bool {
         ["md", "markdown"].contains(url.pathExtension.lowercased())
+    }
+
+    private static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }

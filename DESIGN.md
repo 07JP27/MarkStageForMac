@@ -106,7 +106,8 @@ The Markdown `#` under a stage spotlight remains the product's signature in bran
 **Key Characteristics:**
 
 - Native AppKit chrome around a fixed-ratio presentation canvas
-- One large current slide with a narrower next-slide and notes rail
+- A full-height visual slide list beside a current-slide workspace
+- Current slide above a lower notes and next-slide row
 - A neutral, unmistakably native empty state before a deck is loaded
 - Compact, stateful controls that remain usable during a talk
 - Strict separation between host chrome and author-controlled deck themes
@@ -154,15 +155,17 @@ Deck typography is separate. The bundled defaults use `typography.slide-heading`
 
 ## Layout
 
-The operator window opens at 1280 × 800 pt, cannot shrink below 960 × 640 pt, and uses a full-size content view beneath a transparent titlebar. Its vertical structure is fixed-height header (58 pt), optional error bar (32 pt), flexible content, and fixed-height footer (54 pt).
+The operator window opens at 1280 × 800 pt and uses a full-size content view beneath a transparent titlebar. Its vertical structure is fixed-height header (58 pt), optional error bar (32 pt), flexible content, and fixed-height footer (54 pt). The minimum window width must accommodate the slide list plus the note and next-slide minimums without constraint conflicts.
 
-- **Header:** The filename sits at the leading edge with a 20 pt inset. Slide List, Start/End Presentation, and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Open and Close Markdown live only in the File menu. Both groups sit 8 pt below the titlebar's geometric center.
-- **Content:** A vertical `NSSplitView` holds the current-slide pane and the supporting rail. The divider position persists as `MarkdStageOperatorSplit`; its initial position is 850 pt. The current pane has a 560 pt minimum width. The rail has a 320 pt minimum width and resists compression.
-- **Current slide:** The slide sits inside `spacing.preview-inset` on all sides. `AspectRatioView` fits a centered 16:9 rectangle and uses black letterboxing for remaining space.
-- **Supporting rail:** `spacing.rail-inset` surrounds two equally tall panes separated by the same inset. The upper pane holds the next 16:9 preview; the lower pane holds scrolling speaker notes.
+- **Header:** The filename sits at the leading edge with a 20 pt inset. Start/End Presentation and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Open and Close Markdown live only in the File menu. Both groups sit 8 pt below the titlebar's geometric center.
+- **Outer split:** A vertical `NSSplitView` places the full-height slide list at left and the workspace at right. The list starts near 230 pt and stays user-resizable between roughly 180–320 pt.
+- **Workspace split:** A horizontal `NSSplitView` gives the current slide approximately 62% of the available height and the lower context row the remainder.
+- **Current slide:** The upper workspace pane fits the current 16:9 slide as large as possible without cropping, using black letterboxing only where the pane ratio requires it.
+- **Lower context row:** A vertical `NSSplitView` gives notes approximately 62% of the width and the next-slide pane the remainder. Notes have room for readable paragraphs; the next slide retains a useful 16:9 preview.
+- **Persistence:** All three split views use V2 autosave names. Initial divider positions apply only once and never overwrite a restored user layout.
 - **Footer:** Previous, a centered page counter, and Next occupy the visual center with 18 pt gaps. Live-reload, loading, update, export, and error status sits independently at the leading edge with an 18 pt inset.
 
-The native shell has no alternate compact reflow below its minimum size; users resize the persistent split instead. The bundled web presenter view is separate and switches from a two-column preview/sidebar grid to one scrollable column at 800 CSS px.
+The native shell has no alternate compact reflow below its minimum size; users resize the persistent splits instead. The bundled web presenter view is separate and switches from a two-column preview/sidebar grid to one scrollable column at 800 CSS px.
 
 The audience window opens on the first non-main display when available, otherwise on the main display. Its initial 16:9 frame is centered at 88% of the display's visible bounds and capped at 1280 × 720 pt. The window cannot shrink below 640 × 360 pt but remains freely resizable after opening. Native macOS full screen expands the audience view; no custom full-screen shell is added.
 
@@ -197,13 +200,21 @@ SF Symbols are the native icon language. The renderer's short gradient top rule 
 
 ### Operator header
 
-The command row contains three native rounded buttons with leading SF Symbols: Slide List, Start Presentation, and Export PDF. All three are disabled until a deck exists. Open and Close Markdown remain in the File menu to avoid accidental file-state changes from the presentation controls. Closing Markdown unloads the current deck, stops live reload and the audience window, and restores the empty state without closing the application window. While an audience window is open, Start Presentation becomes End Presentation and swaps the play-rectangle symbol for a stop-rectangle symbol; its accessibility label changes with it.
+The command row contains two native rounded buttons with leading SF Symbols: Start Presentation and Export PDF. Both are disabled until a deck exists. Open and Close Markdown remain in the File menu to avoid accidental file-state changes from the presentation controls. Closing Markdown unloads the current deck, stops live reload and the audience window, and restores the empty state without closing the application window. While an audience window is open, Start Presentation becomes End Presentation and swaps the play-rectangle symbol for a stop-rectangle symbol; its accessibility label changes with it.
 
 The leading filename is medium-weight secondary text and truncates through the middle. The window title also changes to “[filename] — MarkdStage,” but remains visually hidden in the transparent titlebar.
 
-### Current preview and supporting rail
+### Slide thumbnail sidebar
 
-The current-slide pane is intentionally unlabeled and receives the largest area. Supporting panes use compact captions above their content. Speaker notes are read-only but selectable, scroll vertically, and use ordinary label color when present. Empty notes read “No speaker notes” in secondary color. On the final slide, the next preview is hidden and replaced by centered secondary text reading “There is no next slide.”
+The left sidebar is the only slide-list interface. It uses a native vertically scrolling collection view with reusable cells; the former header button, modal list, menu item, and ⌘L shortcut do not exist.
+
+Each cell presents a static 16:9 image generated from the same renderer used for PDF output, followed by its page number and derived title. The current slide receives a native accent selection treatment. Clicking a cell navigates immediately; navigation from buttons, keyboard, presenter, or live reload updates selection and scrolls the current item into view only when necessary.
+
+The sidebar never embeds one `WKWebView` per slide. One hidden renderer creates an in-memory PDF once per `deckVersion`; PDF pages become cached thumbnail images. Until a thumbnail is ready, the cell keeps its page/title and a neutral placeholder. VoiceOver sees one item label, “Slide N: title,” rather than a duplicate slide DOM.
+
+### Current preview and lower context row
+
+The current-slide pane is labeled “CURRENT SLIDE” and receives the largest workspace area. The lower row places “SPEAKER NOTES” at left and “NEXT SLIDE” at right. Speaker notes are read-only but selectable, scroll vertically, and use ordinary label color when present. Empty notes read “No speaker notes” in secondary color. On the final slide, the next preview is hidden and replaced by centered secondary text reading “There is no next slide.”
 
 ### Footer navigation and status
 
@@ -221,7 +232,7 @@ No brand field, spotlight, oversized mark, or slide-like 16:9 artwork appears in
 
 A deck load error reveals a 32 pt bar directly under the header, with a low-opacity system-red background and medium system-red text. If a previous deck rendered successfully, it remains visible and the message says so. The footer simultaneously names the failed file.
 
-Slide List is a native alert sheet containing a 440 × 30 pt pop-up and Go to Slide / Cancel actions. Open and Export PDF use native open/save sheets. PDF failures use a warning alert sheet titled “Couldn’t save the PDF.” Starting another export while one is active produces the system alert sound rather than another panel.
+Open and Export PDF use native open/save sheets. PDF failures use a warning alert sheet titled “Couldn’t save the PDF.” Starting another export while one is active produces the system alert sound rather than another panel.
 
 ### Audience window and renderer controls
 
@@ -238,7 +249,8 @@ Headings, body, code, tables, blockquotes, images, Mermaid, and architecture dia
 ### Accessibility contract
 
 - Native command buttons provide explicit accessibility labels, and each SF Symbol has a matching accessibility description. The presentation label updates with its state.
-- Menus expose Open (⌘O), Export PDF (⇧⌘E), Slide List (⌘L), Start/End Presentation (⌘Return), audience full screen (⌃⌘F), arrow-key navigation, and Command-arrow first/last navigation.
+- Menus expose Open (⌘O), Export PDF (⇧⌘E), Start/End Presentation (⌘Return), audience full screen (⌃⌘F), arrow-key navigation, and Command-arrow first/last navigation.
+- Thumbnail cells are keyboard-selectable collection items with one concise accessible name and no embedded web-content accessibility tree.
 - Keyboard slide-navigation menu items validate as unavailable while a sheet is attached or a text view owns focus, preventing accidental advancement while choosing a file or selecting notes.
 - Renderer navigation, dialogs, presenter regions, counters, and statuses have accessible names or polite live regions. Overview/import surfaces are modal dialogs, and speaker notes are keyboard-focusable.
 - Renderer controls use a visible 2 px theme-accent focus outline. Hover-revealed audience controls also reveal on focus.
@@ -250,7 +262,7 @@ Headings, body, code, tables, blockquotes, images, Mermaid, and architecture dia
 ### Do:
 
 - **Do** keep loaded chrome native: AppKit controls, SF Symbols, semantic colors, header/menu materials, and system sheets.
-- **Do** preserve the current-slide-first split, 16:9 fitting, 560 pt current-pane minimum, and 320 pt supporting-rail minimum.
+- **Do** preserve the full-height list, upper current-slide pane, lower notes/next row, and 16:9 fitting for every preview.
 - **Do** keep status visible at the footer's leading edge and navigation stable at its center.
 - **Do** retain the last successfully rendered deck when a refresh fails and expose the failure in both the error bar and status line.
 - **Do** preserve keyboard access, dynamic accessibility labels, focus visibility, forced-colors behavior, and reduced-motion behavior.
@@ -267,3 +279,5 @@ Headings, body, code, tables, blockquotes, images, Mermaid, and architecture dia
 - **Don't** invent a compact shell reflow below the implemented minimum window size.
 - **Don't** surface renderer-only editing controls as part of the macOS operator shell.
 - **Don't** place Open or Close controls in the presentation command row.
+- **Don't** reintroduce a modal or menu-based slide list alongside the persistent sidebar.
+- **Don't** use a live `WKWebView` in each thumbnail cell.

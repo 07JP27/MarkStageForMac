@@ -78,6 +78,10 @@ final class SlideWebView: NSView, WKNavigationDelegate, WKUIDelegate {
         return nil
     }
 
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        webView.reloadFromOrigin()
+    }
+
     private static func sameOrigin(_ left: URL, _ right: URL) -> Bool {
         left.scheme?.lowercased() == right.scheme?.lowercased() &&
             left.host?.lowercased() == right.host?.lowercased() &&

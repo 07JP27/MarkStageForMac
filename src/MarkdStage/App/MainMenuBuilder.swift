@@ -60,7 +60,6 @@ enum MainMenuBuilder {
         last.keyEquivalentModifierMask = [.command]
         menu.addItem(last)
         menu.addItem(.separator())
-        menu.addItem(item("Slide List…", action: #selector(delegate.showSlideList(_:)), key: "l", target: delegate))
         let present = item(
             "Start or End Presentation",
             action: #selector(delegate.togglePresentation(_:)),
