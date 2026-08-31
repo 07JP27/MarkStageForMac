@@ -49,7 +49,7 @@ xattr -dr com.apple.quarantine /Applications/MarkdStage.app
 3. ボタン、Space、Page Up/Down、左右矢印で移動します。
 4. **Presentation → Start or End Presentation** でオーディエンスウィンドウを開きます。
 5. 対象ディスプレイへ移動し、**View → Toggle Audience Full Screen** を選びます。
-6. **File → Close Markdown** または **Close** ボタンでデッキを閉じます。
+6. **File → Close Markdown** でデッキを閉じます。
 
 スライドは `---` で区切ります。先頭のfront matterでレイアウトとテーマを指定できます。
 

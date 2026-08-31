@@ -49,7 +49,7 @@ Developer ID signing and notarization are supported for maintainer builds.
 3. Navigate with the controls, Space, Page Up/Down, or Left/Right Arrow.
 4. Choose **Presentation → Start or End Presentation** to open the audience window.
 5. Move the audience window to the target display and choose **View → Toggle Audience Full Screen**.
-6. Choose **File → Close Markdown** or the **Close** button to unload the deck.
+6. Choose **File → Close Markdown** to unload the deck.
 
 Slides are separated by `---`. Optional front matter controls layout and theme:
 

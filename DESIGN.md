@@ -37,8 +37,8 @@ colors:
 typography:
   display:
     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif'
-    fontSize: "34px"
-    fontWeight: 700
+    fontSize: "20px"
+    fontWeight: 600
   body:
     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif'
     fontSize: "14px"
@@ -91,8 +91,6 @@ spacing:
   rail-inset: "12px"
   preview-inset: "16px"
   window-edge: "20px"
-  empty-copy-gap: "24px"
-  empty-edge: "48px"
 ---
 
 # Design System: MarkdStage for macOS
@@ -103,33 +101,30 @@ spacing:
 
 MarkdStage preserves the upstream renderer as the visual authority for every presentation and wraps it in a compact, native macOS operator shell. The shell should feel like backstage equipment: calm, exact, and immediately legible under presentation pressure. It uses AppKit structure and system appearance rather than restyling the deck or imitating a web dashboard.
 
-The Markdown `#` under a stage spotlight remains the product's signature. Its Midnight Ink, Paper, and Spotlight Amber world appears in the empty state, where the product needs an identity before an author's work is present. Once a deck is loaded, semantic macOS chrome recedes and the current slide dominates.
+The Markdown `#` under a stage spotlight remains the product's signature in brand assets and the renderer. The native empty state deliberately stays neutral so it cannot be mistaken for a loaded slide. Once a deck is loaded, semantic macOS chrome recedes and the current slide dominates.
 
 **Key Characteristics:**
 
 - Native AppKit chrome around a fixed-ratio presentation canvas
 - One large current slide with a narrower next-slide and notes rail
-- Strong branding only before a deck is loaded
+- A neutral, unmistakably native empty state before a deck is loaded
 - Compact, stateful controls that remain usable during a talk
 - Strict separation between host chrome and author-controlled deck themes
 - Matching renderer output in operator preview, audience view, and PDF
 
 ## Colors
 
-The product has two color authorities: fixed brand colors for the no-deck moment, and role-based renderer palettes for deck content. Routine macOS chrome is deliberately absent from the static token list because it uses dynamic AppKit colors.
+The product has two color authorities: fixed brand colors for identity assets and role-based renderer palettes for deck content. Native macOS chrome, including the empty state, is deliberately absent from the static token list because it uses dynamic AppKit colors.
 
 ### Primary
 
-- **Spotlight Amber** (`colors.brand-spotlight-amber`) is the scarce brand action color: the empty-state Open action, spotlight, and branded renderer placeholder.
-- **Warm Light** (`colors.brand-warm-light`) is the illuminated edge and oversized Markdown mark. It supports Spotlight Amber; it is not a second routine action color.
+- **Spotlight Amber** (`colors.brand-spotlight-amber`) is the scarce brand action color used by identity artwork and the branded renderer placeholder, not native shell controls.
+- **Warm Light** (`colors.brand-warm-light`) supports the illuminated Markdown mark in identity artwork.
 
 ### Neutral
 
-- **Midnight Ink** (`colors.brand-midnight-ink`) is the branded empty-state field.
-- **Stage Navy** (`colors.brand-stage-navy`) supports the branded web placeholder and its empty navigation surface; it does not replace the loaded operator window's semantic system surfaces.
-- **Paper** (`colors.brand-paper`) carries the empty-state promise and illuminated mark.
-- **Cool Copy** (`colors.brand-cool-copy`) carries supporting brand copy.
-- The loaded native shell uses `windowBackgroundColor`, `controlBackgroundColor`, `separatorColor`, `labelColor`, and `secondaryLabelColor`. Errors use `systemRed`, including a low-opacity red error-bar field.
+- **Midnight Ink**, **Stage Navy**, **Paper**, and **Cool Copy** belong to identity artwork and the bundled renderer's branded placeholder.
+- The native shell uses `windowBackgroundColor`, `controlBackgroundColor`, `separatorColor`, `labelColor`, and `secondaryLabelColor` in loaded and empty states. Errors use `systemRed`, including a low-opacity red error-bar field.
 
 ### Renderer palettes
 
@@ -145,11 +140,11 @@ Renderer errors and non-fatal routing warnings use `renderer-error` and `rendere
 
 **The Chrome–Canvas Boundary Rule.** Use AppKit semantic colors for loaded application chrome and the selected renderer theme inside slides. Never borrow a deck accent for native shell controls.
 
-**The Rare Amber Rule.** Spotlight Amber belongs to branded empty and opening moments, not every selected, enabled, or primary-looking control.
+**The Rare Amber Rule.** Spotlight Amber belongs to identity artwork and explicitly themed content, not native empty-state or routine shell controls.
 
 ## Typography
 
-The shell uses San Francisco through AppKit system fonts. It does not bundle or force a display face. The empty-state promise uses `typography.display`; body copy and speaker notes use `typography.body`; file, error, counter, status, and pane-caption roles use their corresponding frontmatter tokens. The counter uses tabular numerals. Native buttons and menus keep AppKit's own metrics.
+The shell uses San Francisco through AppKit system fonts. It does not bundle or force a display face. The empty-state label uses `typography.display`, its supporting label uses 13 pt regular system text, and speaker notes use `typography.body`; file, error, counter, status, and pane-caption roles use their corresponding frontmatter tokens. The counter uses tabular numerals. Native buttons and menus keep AppKit's own metrics.
 
 Pane captions are short, uppercase strings such as “NEXT SLIDE” and “SPEAKER NOTES.” Hierarchy comes from compact size, semibold weight, and secondary-label color rather than decorative tracking. Paths and filenames truncate in the middle; transient status text does the same when space is constrained.
 
@@ -161,7 +156,7 @@ Deck typography is separate. The bundled defaults use `typography.slide-heading`
 
 The operator window opens at 1280 × 800 pt, cannot shrink below 960 × 640 pt, and uses a full-size content view beneath a transparent titlebar. Its vertical structure is fixed-height header (58 pt), optional error bar (32 pt), flexible content, and fixed-height footer (54 pt).
 
-- **Header:** The filename sits at the leading edge with a 20 pt inset. Open, Close, Slide List, Start/End Presentation, and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Both groups sit 8 pt below the titlebar's geometric center.
+- **Header:** The filename sits at the leading edge with a 20 pt inset. Slide List, Start/End Presentation, and Export PDF form a trailing command row with 8 pt gaps and a 16 pt trailing inset. Open and Close Markdown live only in the File menu. Both groups sit 8 pt below the titlebar's geometric center.
 - **Content:** A vertical `NSSplitView` holds the current-slide pane and the supporting rail. The divider position persists as `MarkdStageOperatorSplit`; its initial position is 850 pt. The current pane has a 560 pt minimum width. The rail has a 320 pt minimum width and resists compression.
 - **Current slide:** The slide sits inside `spacing.preview-inset` on all sides. `AspectRatioView` fits a centered 16:9 rectangle and uses black letterboxing for remaining space.
 - **Supporting rail:** `spacing.rail-inset` surrounds two equally tall panes separated by the same inset. The upper pane holds the next 16:9 preview; the lower pane holds scrolling speaker notes.
@@ -171,13 +166,13 @@ The native shell has no alternate compact reflow below its minimum size; users r
 
 The audience window opens on the first non-main display when available, otherwise on the main display. Its initial 16:9 frame is centered at 88% of the display's visible bounds and capped at 1280 × 720 pt. The window cannot shrink below 640 × 360 pt but remains freely resizable after opening. Native macOS full screen expands the audience view; no custom full-screen shell is added.
 
-The renderer itself is one viewport-sized slide with no page scrolling. Operator previews render against the same canonical 1280 × 720 CSS viewport and use `WKWebView.pageZoom` to fit their native 16:9 panes; they must never reflow at the smaller pane size. Standard deck padding scales between 30–68 px vertically and 40–104 px horizontally. Only content explicitly marked as overflowing becomes internally scrollable. PDF mode fixes each page to 13.333333 × 7.5 in (1280 × 720 CSS px) and removes navigation, animations, and editing controls.
+The renderer itself is one viewport-sized slide with no page scrolling. Operator previews render against the same canonical 1280 × 720 CSS viewport and fit their native 16:9 panes with a CSS transform; they never reflow at the smaller pane size. Standard deck padding scales between 30–68 px vertically and 40–104 px horizontally. Only content explicitly marked as overflowing becomes internally scrollable. PDF mode fixes each page to 13.333333 × 7.5 in (1280 × 720 CSS px) and removes navigation, animations, and editing controls.
 
 ## Elevation & Depth
 
 The native operator shell is flat and tonal. The header uses the active AppKit header material, the footer uses menu material, and panes use semantic control backgrounds with a one-point semantic separator border. There are no custom shadows on loaded shell controls or panes.
 
-The empty state creates depth with a translucent triangular amber spotlight rather than elevation. The bundled branded placeholder adds an angled light field and an offset shadow behind its large `#`, but this treatment does not continue into the loaded operator chrome.
+The empty state adds no custom depth: it uses AppKit's content-background material and semantic labels. The bundled renderer may retain its branded placeholder treatment, but the native empty overlay fully separates that artwork from the no-document state.
 
 Renderer shadows are restrained and functional:
 
@@ -196,13 +191,13 @@ The dominant geometry is the 16:9 stage rectangle. Native pane shells use gently
 
 The renderer uses a compact radius vocabulary: inline code uses `rounded.inline-code`, presenter buttons use `rounded.renderer-control`, common blocks and media use `rounded.pane` or `rounded.media`, overview panels use `rounded.overlay`, and navigation/counter capsules use `rounded.pill`. Cover backgrounds and author-supplied logos remain edge-to-edge and square.
 
-SF Symbols are the native icon language. The oversized `#`, the spotlight wedge, and the renderer's short gradient top rule are the only recurring brand geometries.
+SF Symbols are the native icon language. The renderer's short gradient top rule and the separate brand artwork remain the recurring product geometries; neither is reproduced in the native empty state.
 
 ## Components
 
 ### Operator header
 
-The command row contains five native rounded buttons with leading SF Symbols: Open, Close, Slide List, Start Presentation, and Export PDF. Open is always available. The other four are disabled until a deck exists. Close unloads the current deck, stops live reload and the audience window, and restores the empty state without closing the application window. While an audience window is open, Start Presentation becomes End Presentation and swaps the play-rectangle symbol for a stop-rectangle symbol; its accessibility label changes with it.
+The command row contains three native rounded buttons with leading SF Symbols: Slide List, Start Presentation, and Export PDF. All three are disabled until a deck exists. Open and Close Markdown remain in the File menu to avoid accidental file-state changes from the presentation controls. Closing Markdown unloads the current deck, stops live reload and the audience window, and restores the empty state without closing the application window. While an audience window is open, Start Presentation becomes End Presentation and swaps the play-rectangle symbol for a stop-rectangle symbol; its accessibility label changes with it.
 
 The leading filename is medium-weight secondary text and truncates through the middle. The window title also changes to “[filename] — MarkdStage,” but remains visually hidden in the transparent titlebar.
 
@@ -218,9 +213,9 @@ The status line reports the current operation without blocking the operator: ope
 
 ### Empty state
 
-With no rendered slides, the current pane becomes the strongly branded surface. A two-line promise and supporting sentence are left aligned with `spacing.empty-edge`; the stack uses `spacing.preview-inset`, then a 24 pt break before the large Open Markdown button. The button is a large native rounded control, tinted Spotlight Amber, and is the Return-key default.
+With no rendered slides, the current pane uses a centered native AppKit empty state on content-background material. A secondary `doc.text` SF Symbol sits above the semibold “No Markdown file open” label, a secondary instruction explains File > Open or drag and drop, and a standard large rounded Open Markdown button remains the Return-key default.
 
-An oversized, black-weight Warm Light `#` occupies roughly the rightmost 30% while a translucent spotlight cuts diagonally behind it. Maintain at least 24 pt between the copy and the mark. The header, footer, zero counter, and disabled deck actions remain visible around this state.
+No brand field, spotlight, oversized mark, or slide-like 16:9 artwork appears in the empty overlay. The supporting rail, footer, zero counter, and header presentation actions remain in the same positions as the loaded layout, but every deck-dependent action is disabled.
 
 ### Errors, sheets, and progress
 
@@ -260,6 +255,7 @@ Headings, body, code, tables, blockquotes, images, Mermaid, and architecture dia
 - **Do** retain the last successfully rendered deck when a refresh fails and expose the failure in both the error bar and status line.
 - **Do** preserve keyboard access, dynamic accessibility labels, focus visibility, forced-colors behavior, and reduced-motion behavior.
 - **Do** treat renderer themes and custom theme assets as author content across preview, audience, and PDF.
+- **Do** keep the no-document state visually native and clearly distinct from rendered slide content.
 
 ### Don't:
 
@@ -270,3 +266,4 @@ Headings, body, code, tables, blockquotes, images, Mermaid, and architecture dia
 - **Don't** add arbitrary shadows to native panes or buttons.
 - **Don't** invent a compact shell reflow below the implemented minimum window size.
 - **Don't** surface renderer-only editing controls as part of the macOS operator shell.
+- **Don't** place Open or Close controls in the presentation command row.

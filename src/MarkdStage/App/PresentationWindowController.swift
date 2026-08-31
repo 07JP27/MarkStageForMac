@@ -23,7 +23,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
     private let nextPlaceholder = NSTextField(labelWithString: "There is no next slide")
     private let previousButton = NSButton()
     private let nextButton = NSButton()
-    private let closeButton = NSButton()
     private let overviewButton = NSButton()
     private let presentButton = NSButton()
     private let exportButton = NSButton()
@@ -192,13 +191,11 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
             baseURL: baseURL,
             onCompletion: { [weak self] in
                 self?.exportCoordinator = nil
-                self?.closeButton.isEnabled = (self?.session.currentSnapshot().total ?? 0) > 0
             }
         ) { [weak self] status in
             self?.liveStatusLabel.stringValue = status
         }
         exportCoordinator = coordinator
-        closeButton.isEnabled = false
         coordinator.export(suggestedName: "\(stem).pdf")
     }
 
@@ -270,17 +267,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         header.blendingMode = .withinWindow
         header.state = .active
 
-        let openButton = makeButton(
-            title: "Open",
-            symbol: "folder",
-            action: #selector(openDocument(_:))
-        )
-        configure(
-            closeButton,
-            title: "Close",
-            symbol: "xmark.circle",
-            action: #selector(closeDocument(_:))
-        )
         configure(
             overviewButton,
             title: "Slide List",
@@ -305,9 +291,7 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
         fileNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let controls = NSStackView(
-            views: [openButton, closeButton, overviewButton, presentButton, exportButton]
-        )
+        let controls = NSStackView(views: [overviewButton, presentButton, exportButton])
         controls.orientation = .horizontal
         controls.spacing = 8
         controls.translatesAutoresizingMaskIntoConstraints = false
@@ -470,12 +454,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         return view
     }
 
-    private func makeButton(title: String, symbol: String, action: Selector) -> NSButton {
-        let button = NSButton()
-        configure(button, title: title, symbol: symbol, action: action)
-        return button
-    }
-
     private func configure(_ button: NSButton, title: String, symbol: String, action: Selector) {
         button.title = title
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
@@ -561,7 +539,6 @@ final class PresentationWindowController: NSWindowController, NSWindowDelegate, 
         emptyState.isHidden = loaded
         previousButton.isEnabled = loaded && snapshot.index > 0
         nextButton.isEnabled = snapshot.hasNext
-        closeButton.isEnabled = loaded && exportCoordinator == nil
         overviewButton.isEnabled = loaded
         presentButton.isEnabled = loaded
         exportButton.isEnabled = loaded
