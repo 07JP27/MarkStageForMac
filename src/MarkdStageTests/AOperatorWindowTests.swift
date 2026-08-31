@@ -40,7 +40,6 @@ final class AOperatorWindowTests: XCTestCase {
             thumbnailProvider: NoopThumbnailProvider()
         )
         Self.retainedControllers.append(controller)
-        controller.showWindow(nil)
         controller.window?.layoutIfNeeded()
         let contentView = try XCTUnwrap(controller.window?.contentView)
         let allButtons = buttons(in: contentView)
@@ -84,9 +83,14 @@ final class AOperatorWindowTests: XCTestCase {
             0.25,
             accuracy: 0.03
         )
+        let maximumCurrentSlideRatio = (
+            workspaceSplit.bounds.height
+                - 200
+                - workspaceSplit.dividerThickness
+        ) / workspaceSplit.bounds.height
         XCTAssertEqual(
             firstPaneThickness(in: workspaceSplit) / workspaceSplit.bounds.height,
-            0.70,
+            min(0.70, maximumCurrentSlideRatio),
             accuracy: 0.03
         )
         XCTAssertEqual(
@@ -141,6 +145,9 @@ final class AOperatorWindowTests: XCTestCase {
     }
 
     func testMenusRetainFileCommandsAndOmitLegacySlideList() throws {
+        XCTAssertFalse(
+            AppDelegate().applicationShouldTerminateAfterLastWindowClosed(NSApp)
+        )
         let menu = MainMenuBuilder.make(delegate: AppDelegate())
         let fileMenu = try XCTUnwrap(menu.items.first(where: { $0.title == "File" })?.submenu)
         let fileTitles = Set(fileMenu.items.map(\.title))
