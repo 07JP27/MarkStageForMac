@@ -13,7 +13,7 @@
 
 ---
 
-**MarkdStage for macOS** turns a Markdown file into a presentation without changing the source format. It is a native AppKit port of [runceel/markdstage](https://github.com/runceel/markdstage), created with permission from the original project's owner. Build and distribution follow the patterns used by [SkimDown](https://github.com/07JP27/SkimDown).
+**MarkdStage for macOS** turns a Markdown file into a presentation without changing the source format. It is a native AppKit port of [runceel/markdstage](https://github.com/runceel/markdstage).
 
 ## Highlights
 

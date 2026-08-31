@@ -13,7 +13,7 @@
 
 ---
 
-**MarkdStage for macOS** は、Markdownを別形式へ移さず、そのままプレゼンテーションとして表示するネイティブmacOSアプリです。[runceel/markdstage](https://github.com/runceel/markdstage) オーナーの許可を得てmacOSへ移植し、ビルド・配布方法は [SkimDown](https://github.com/07JP27/SkimDown) を基準にしています。
+**MarkdStage for macOS** は、Markdownを別形式へ移さず、そのままプレゼンテーションとして表示する [runceel/markdstage](https://github.com/runceel/markdstage) のネイティブmacOS版です。
 
 ## 主な機能
 
