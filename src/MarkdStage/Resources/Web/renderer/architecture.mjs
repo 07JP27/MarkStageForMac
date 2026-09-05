@@ -91,7 +91,15 @@ const ROUTE_FALLBACK_REMEDIES = Object.freeze({
 });
 
 const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
-const SHAPES = new Set(["rect", "rounded-rect", "ellipse"]);
+const SHAPES = new Set([
+  "rect",
+  "rounded-rect",
+  "ellipse",
+  "diamond",
+  "triangle",
+  "hexagon",
+  "parallelogram",
+]);
 const ROUTINGS = new Set(["straight", "orthogonal", "polyline"]);
 const PORTS = new Set(["auto", "top", "right", "bottom", "left"]);
 const LABEL_LAYERS = new Set(["front", "behind"]);
@@ -1393,6 +1401,20 @@ function appendText(documentRef, parent, element, text, options = {}) {
     textElement.appendChild(tspan);
   });
   parent.appendChild(textElement);
+}
+
+function nodeContentInset(element) {
+  const ratio = {
+    diamond: 0.24,
+    triangle: 0.24,
+    hexagon: 0.14,
+    parallelogram: 0.16,
+  }[element.shape];
+  return ratio ? Math.max(16, element.width * ratio) : 16;
+}
+
+function nodeIconInset(element) {
+  return Math.max(20, nodeContentInset(element), element.width * 0.08);
 }
 
 function elementCenter(element) {
@@ -3454,11 +3476,36 @@ function iconShapeAttributes(shape, textColor) {
   return shape.solid ? { ...shape.attributes, fill: textColor } : shape.attributes;
 }
 
+function polygonPoints(element) {
+  const { x, y, width, height } = element;
+  const right = x + width;
+  const bottom = y + height;
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+  if (element.shape === "diamond") {
+    return `${centerX},${y} ${right},${centerY} ${centerX},${bottom} ${x},${centerY}`;
+  }
+  if (element.shape === "triangle") {
+    return `${centerX},${y} ${right},${bottom} ${x},${bottom}`;
+  }
+  if (element.shape === "hexagon") {
+    const inset = width * 0.25;
+    return `${x + inset},${y} ${right - inset},${y} ${right},${centerY} ${
+      right - inset
+    },${bottom} ${x + inset},${bottom} ${x},${centerY}`;
+  }
+  if (element.shape === "parallelogram") {
+    const inset = Math.min(width * 0.2, height * 0.75);
+    return `${x + inset},${y} ${right},${y} ${right - inset},${bottom} ${x},${bottom}`;
+  }
+  return "";
+}
+
 function renderIcon(documentRef, element) {
   if (!element.icon) return null;
   const size = Math.min(58, element.height * 0.36, element.width * 0.2);
   const x = element.text
-    ? element.x + Math.max(20, element.width * 0.08)
+    ? element.x + nodeIconInset(element)
     : element.x + element.width / 2 - size / 2;
   const y = element.y + element.height / 2 - size / 2;
   const shapes = ICON_SHAPES[element.icon];
@@ -3581,6 +3628,13 @@ function renderNode(documentRef, element) {
         ...common,
       }),
     );
+  } else if (["diamond", "triangle", "hexagon", "parallelogram"].includes(element.shape)) {
+    group.appendChild(
+      svgElement(documentRef, "polygon", {
+        points: polygonPoints(element),
+        ...common,
+      }),
+    );
   } else {
     group.appendChild(
       svgElement(documentRef, "rect", {
@@ -3597,13 +3651,16 @@ function renderNode(documentRef, element) {
   if (icon) group.appendChild(icon.group);
   if (icon && element.text) {
     const textLeft = icon.x + icon.size + 16;
-    const textRight = element.x + element.width - 16;
+    const textRight = element.x + element.width - nodeContentInset(element);
     appendText(documentRef, group, element, element.text, {
       centerX: (textLeft + textRight) / 2,
       availableWidth: Math.max(32, textRight - textLeft),
     });
   } else {
-    appendText(documentRef, group, element, element.text);
+    const inset = nodeContentInset(element);
+    appendText(documentRef, group, element, element.text, {
+      availableWidth: Math.max(32, element.width - inset * 2),
+    });
   }
   return group;
 }
