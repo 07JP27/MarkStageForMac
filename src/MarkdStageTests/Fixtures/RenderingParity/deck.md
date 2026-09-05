@@ -86,6 +86,7 @@ kicker: Architecture
     {
       "type": "node",
       "id": "source",
+      "shape": "diamond",
       "text": "Markdown",
       "icon": "assets/brand/markdstage-mark.svg",
       "x": 80,
@@ -103,9 +104,9 @@ kicker: Architecture
       "height": 540,
       "layout": { "type": "row", "gap": 50, "padding": 50 },
       "children": [
-        { "type": "node", "id": "preview", "text": "Preview", "icon": "browser" },
-        { "type": "node", "id": "audience", "text": "Audience", "icon": "user" },
-        { "type": "node", "id": "pdf", "text": "PDF", "icon": "server" }
+        { "type": "node", "id": "preview", "shape": "triangle", "text": "Preview", "icon": "browser" },
+        { "type": "node", "id": "audience", "shape": "hexagon", "text": "Audience", "icon": "user" },
+        { "type": "node", "id": "pdf", "shape": "parallelogram", "text": "PDF", "icon": "server" }
       ]
     },
     {
